@@ -1,0 +1,51 @@
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+
+import authRoutes from './routes/auth.routes';
+import committeeRoutes from './routes/committee.routes';
+import memberRoutes from './routes/member.routes';
+import roundRoutes from './routes/round.routes';
+import paymentRoutes from './routes/payment.routes';
+import dashboardRoutes from './routes/dashboard.routes';
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors({ origin: '*', credentials: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
+
+// Health check
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/committees', committeeRoutes);
+app.use('/api/members', memberRoutes);
+app.use('/api/rounds', roundRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+
+// 404 handler
+app.use((_req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+// Global error handler
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(err.stack);
+  res.status(500).json({ success: false, message: 'Internal server error', error: err.message });
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+export default app;

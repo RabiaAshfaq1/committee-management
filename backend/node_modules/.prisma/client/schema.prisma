@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  cnic      String?  @unique
+  password  String
+  role      Role     @default(MEMBER)
+  avatar    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  committees CommitteeMember[]
+  payments   Payment[]
+  organized  Committee[]       @relation("OrganizerCommittees")
+}
+
+model Committee {
+  id             String          @id @default(uuid())
+  name           String
+  description    String?
+  totalMembers   Int
+  monthlyAmount  Float
+  startDate      DateTime
+  durationMonths Int
+  turnAssignment TurnAssignment  @default(RANDOM)
+  status         CommitteeStatus @default(ACTIVE)
+  organizerId    String
+  createdAt      DateTime        @default(now())
+
+  organizer User              @relation("OrganizerCommittees", fields: [organizerId], references: [id])
+  members   CommitteeMember[]
+  rounds    Round[]
+}
+
+model CommitteeMember {
+  id          String   @id @default(uuid())
+  userId      String
+  committeeId String
+  turnNumber  Int
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id])
+  committee Committee @relation(fields: [committeeId], references: [id])
+  payments  Payment[]
+}
+
+model Round {
+  id           String      @id @default(uuid())
+  committeeId  String
+  roundNumber  Int
+  payoutUserId String?
+  payoutAmount Float?
+  status       RoundStatus @default(PENDING)
+  dueDate      DateTime?
+  createdAt    DateTime    @default(now())
+
+  committee Committee @relation(fields: [committeeId], references: [id])
+  payments  Payment[]
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  roundId   String
+  memberId  String
+  userId    String
+  amount    Float
+  status    PaymentStatus @default(PENDING)
+  paidAt    DateTime?
+  note      String?
+  createdAt DateTime      @default(now())
+
+  round  Round           @relation(fields: [roundId], references: [id])
+  member CommitteeMember @relation(fields: [memberId], references: [id])
+  user   User            @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  SUPER_ADMIN
+  ORGANIZER
+  MEMBER
+}
+
+enum CommitteeStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+}
+
+enum RoundStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  LATE
+}
+
+enum TurnAssignment {
+  RANDOM
+  MANUAL
+  BIDDING
+}
