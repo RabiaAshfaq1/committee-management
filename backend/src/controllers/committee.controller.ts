@@ -61,7 +61,6 @@ export const getAllCommittees = async (req: AuthRequest, res: Response): Promise
     if (status) where['status'] = status;
     if (search) where['name'] = { contains: search, mode: 'insensitive' };
 
-    // Members see only their committees
     if (req.user?.role === 'MEMBER') {
       where['members'] = { some: { userId: req.user.id } };
     } else if (req.user?.role === 'ORGANIZER') {
@@ -108,7 +107,7 @@ export const getCommitteeById = async (req: AuthRequest, res: Response): Promise
         rounds: {
           orderBy: { roundNumber: 'asc' },
           include: {
-            _count: { select: { payments: true } },
+            _count: { select: { contributionSplits: true } },
           },
         },
       },
@@ -116,6 +115,18 @@ export const getCommitteeById = async (req: AuthRequest, res: Response): Promise
 
     if (!committee) {
       sendNotFound(res, 'Committee not found');
+      return;
+    }
+
+    const user = req.user;
+    if (user?.role === 'MEMBER') {
+      const allowed = committee.members.some((m) => m.userId === user.id);
+      if (!allowed) {
+        sendForbidden(res, 'You are not part of this committee');
+        return;
+      }
+    } else if (user?.role === 'ORGANIZER' && committee.organizerId !== user.id) {
+      sendForbidden(res, 'You can only open committees you organize');
       return;
     }
 
@@ -175,8 +186,6 @@ export const deleteCommittee = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    // Delete related data in order
-    await prisma.payment.deleteMany({ where: { round: { committeeId: id } } });
     await prisma.round.deleteMany({ where: { committeeId: id } });
     await prisma.committeeMember.deleteMany({ where: { committeeId: id } });
     await prisma.committee.delete({ where: { id } });
@@ -201,8 +210,21 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
 
+    if (
+      req.user!.role === 'ORGANIZER' &&
+      committee.organizerId !== req.user!.id
+    ) {
+      sendForbidden(res, 'You can only add members to your own committees');
+      return;
+    }
+
     if (committee.members.length >= committee.totalMembers) {
       sendBadRequest(res, 'Committee is full');
+      return;
+    }
+
+    if (!userId || turnNumber === undefined || turnNumber === null) {
+      sendBadRequest(res, 'userId and turnNumber are required');
       return;
     }
 
@@ -237,10 +259,21 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
 
 export const removeMember = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { memberId } = req.params;
-    const member = await prisma.committeeMember.findUnique({ where: { id: memberId } });
+    const { id: committeeId, memberId } = req.params;
+    const member = await prisma.committeeMember.findFirst({
+      where: { id: memberId, committeeId },
+      include: { committee: { select: { organizerId: true } } },
+    });
     if (!member) {
-      sendNotFound(res, 'Member not found');
+      sendNotFound(res, 'Member not found on this committee');
+      return;
+    }
+
+    if (
+      req.user!.role === 'ORGANIZER' &&
+      member.committee.organizerId !== req.user!.id
+    ) {
+      sendForbidden(res, 'You can only remove members from your own committees');
       return;
     }
 

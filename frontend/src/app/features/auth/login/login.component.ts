@@ -21,7 +21,7 @@ import { AuthService } from '../../../core/services/auth.service';
             </svg>
           </div>
           <h1 class="text-4xl font-bold mb-4">CommitteeMS</h1>
-          <p class="text-indigo-200 text-lg leading-relaxed">Professional rotating savings management. Track committees, payments &amp; payouts with ease.</p>
+          <p class="text-indigo-200 text-lg leading-relaxed">Committees, rounds, and payout proof — simple and clear.</p>
           <div class="mt-10 grid grid-cols-3 gap-4">
             @for (s of stats; track s.label) {
               <div class="p-4 rounded-xl" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1)">

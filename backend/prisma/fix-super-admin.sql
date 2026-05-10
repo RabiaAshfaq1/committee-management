@@ -1,0 +1,1 @@
+UPDATE "User" SET role = 'ORGANIZER' WHERE role = 'SUPER_ADMIN';

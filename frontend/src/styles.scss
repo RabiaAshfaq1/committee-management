@@ -1,10 +1,10 @@
+@use '@angular/material' as mat;
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Angular Material Theme */
-@use '@angular/material' as mat;
 @include mat.core();
 
 $primary-palette: mat.define-palette(mat.$indigo-palette, 500);

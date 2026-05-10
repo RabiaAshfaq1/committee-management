@@ -2,7 +2,7 @@ import { Response } from 'express';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import {
-  sendSuccess, sendCreated, sendError, sendNotFound, sendBadRequest,
+  sendSuccess, sendCreated, sendError, sendNotFound, sendBadRequest, sendForbidden,
 } from '../utils/response.utils';
 import bcrypt from 'bcryptjs';
 
@@ -51,16 +51,27 @@ export const getMemberById = async (req: AuthRequest, res: Response): Promise<vo
         role: true, avatar: true, isActive: true, createdAt: true,
         committees: {
           include: {
-            committee: { select: { id: true, name: true, status: true, monthlyAmount: true } },
+            committee: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                monthlyAmount: true,
+                organizer: { select: { id: true, name: true, email: true } },
+              },
+            },
           },
-        },
-        payments: {
-          take: 20, orderBy: { createdAt: 'desc' },
-          include: { round: { select: { roundNumber: true, dueDate: true } } },
         },
       },
     });
     if (!member) { sendNotFound(res, 'Member not found'); return; }
+    if (
+      req.user?.role === 'MEMBER' &&
+      req.user.id !== id
+    ) {
+      sendForbidden(res, 'You can only view your own profile');
+      return;
+    }
     sendSuccess(res, member);
   } catch (err) {
     sendError(res, 'Failed to fetch member', 500, String(err));
@@ -113,5 +124,67 @@ export const deactivateMember = async (req: AuthRequest, res: Response): Promise
     sendSuccess(res, null, 'Member deactivated');
   } catch (err) {
     sendError(res, 'Failed to deactivate member', 500, String(err));
+  }
+};
+
+/** Participation summary: committees joined, payout rounds as recipient, transaction IDs on record */
+export const getMemberCommitteeHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    if (req.user?.role === 'MEMBER' && req.user.id !== id) {
+      sendForbidden(res, 'You can only view your own history');
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, name: true, role: true },
+    });
+    if (!user || user.role !== 'MEMBER') {
+      sendNotFound(res, 'Member not found');
+      return;
+    }
+
+    const memberships = await prisma.committeeMember.findMany({
+      where: { userId: id },
+      include: {
+        committee: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            monthlyAmount: true,
+            organizer: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const payoutRounds = await prisma.round.findMany({
+      where: { payoutUserId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        roundNumber: true,
+        status: true,
+        payoutAmount: true,
+        payoutTransactionId: true,
+        dueDate: true,
+        createdAt: true,
+        committee: { select: { id: true, name: true } },
+      },
+    });
+
+    const summary = {
+      committeesJoined: memberships.length,
+      timesReceivedPayout: payoutRounds.filter((r) => r.status === 'COMPLETED').length,
+      transactionIdsRecorded: payoutRounds.filter((r) => !!r.payoutTransactionId).length,
+    };
+
+    sendSuccess(res, { memberships, payoutRounds, summary }, 'History fetched');
+  } catch (err) {
+    sendError(res, 'Failed to fetch history', 500, String(err));
   }
 };

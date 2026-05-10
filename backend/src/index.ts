@@ -7,7 +7,6 @@ import authRoutes from './routes/auth.routes';
 import committeeRoutes from './routes/committee.routes';
 import memberRoutes from './routes/member.routes';
 import roundRoutes from './routes/round.routes';
-import paymentRoutes from './routes/payment.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 
 const app = express();
@@ -29,7 +28,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/committees', committeeRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/rounds', roundRoutes);
-app.use('/api/payments', paymentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 // 404 handler

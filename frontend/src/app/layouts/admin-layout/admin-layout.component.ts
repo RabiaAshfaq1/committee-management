@@ -88,7 +88,7 @@ interface NavItem {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
               </svg>
             </button>
-            <h1 class="text-slate-700 font-semibold text-sm">Committee Management System</h1>
+            <h1 class="text-slate-700 font-semibold text-sm">Committee — simple rotating savings</h1>
           </div>
           <div class="flex items-center gap-3">
             <!-- Dark mode toggle -->
@@ -140,8 +140,7 @@ export class AdminLayoutComponent {
   private allNav: NavItem[] = [
     { label: 'Dashboard', icon: '🏠', route: '/dashboard' },
     { label: 'Committees', icon: '🏦', route: '/committees' },
-    { label: 'Members', icon: '👥', route: '/members', roles: ['SUPER_ADMIN', 'ORGANIZER'] },
-    { label: 'Payments', icon: '💳', route: '/payments' },
+    { label: 'Members', icon: '👥', route: '/members', roles: ['ORGANIZER'] },
     { label: 'Rounds', icon: '🔄', route: '/rounds' },
   ];
 

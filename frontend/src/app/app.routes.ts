@@ -37,11 +37,7 @@ export const routes: Routes = [
       {
         path: 'members',
         loadComponent: () => import('./features/members/members.component').then(m => m.MembersComponent),
-        canActivate: [roleGuard(['SUPER_ADMIN', 'ORGANIZER'])],
-      },
-      {
-        path: 'payments',
-        loadComponent: () => import('./features/payments/payments.component').then(m => m.PaymentsComponent),
+        canActivate: [roleGuard(['ORGANIZER'])],
       },
       {
         path: 'rounds',

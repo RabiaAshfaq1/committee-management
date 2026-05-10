@@ -1,7 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ReactiveFormsModule, FormBuilder, Validators, FormsModule } from '@angular/forms';
+import { Router, RouterLink, NavigationEnd } from '@angular/router';
+import { Subscription, filter } from 'rxjs';
 import { CommitteeService } from '../../core/services/committee.service';
 import { MemberService } from '../../core/services/member.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -9,7 +10,7 @@ import { AuthService } from '../../core/services/auth.service';
 @Component({
   selector: 'app-committees',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink],
   template: `
     <div class="space-y-6 animate-fade-in">
       <!-- Header -->
@@ -58,6 +59,9 @@ import { AuthService } from '../../core/services/auth.service';
             <div class="glass-card p-6 flex flex-col gap-4 hover:shadow-lg transition-shadow">
               <div class="flex items-start justify-between">
                 <div class="flex-1 min-w-0">
+                  @if (auth.isOrganizer && c.id === firstCommitteeId()) {
+                    <span class="badge badge-info text-[10px] mb-1">First committee</span>
+                  }
                   <h3 class="font-bold text-slate-800 truncate">{{ c.name }}</h3>
                   <p class="text-slate-500 text-xs mt-0.5 truncate">{{ c.description || 'No description' }}</p>
                 </div>
@@ -68,7 +72,7 @@ import { AuthService } from '../../core/services/auth.service';
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div class="bg-slate-50 rounded-xl p-3">
-                  <p class="text-xs text-slate-400">Monthly Amount</p>
+                  <p class="text-xs text-slate-400">Monthly pool</p>
                   <p class="font-bold text-slate-800 font-mono">₨{{ c.monthlyAmount?.toLocaleString() }}</p>
                 </div>
                 <div class="bg-slate-50 rounded-xl p-3">
@@ -134,8 +138,8 @@ import { AuthService } from '../../core/services/auth.service';
                          class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm outline-none bg-slate-50 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1.5">Monthly Amount (₨) *</label>
-                  <input formControlName="monthlyAmount" type="number" min="1" placeholder="e.g. 5000"
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5">Monthly pool total (₨) *</label>
+                  <input formControlName="monthlyAmount" type="number" min="1" placeholder="e.g. 10000"
                          class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm outline-none bg-slate-50 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/>
                 </div>
               </div>
@@ -156,7 +160,7 @@ import { AuthService } from '../../core/services/auth.service';
                 <select formControlName="turnAssignment"
                         class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm outline-none bg-slate-50 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100">
                   <option value="RANDOM">🎲 Random (Auto lucky draw)</option>
-                  <option value="MANUAL">✏️ Manual (Admin assigns)</option>
+                  <option value="MANUAL">✏️ Manual (organizer picks)</option>
                   <option value="BIDDING">💵 Bidding (Highest bid wins)</option>
                 </select>
               </div>
@@ -174,7 +178,9 @@ import { AuthService } from '../../core/services/auth.service';
     </div>
   `,
 })
-export class CommitteesComponent implements OnInit {
+export class CommitteesComponent implements OnInit, OnDestroy {
+  /** Organizer: oldest committee on the current list (badge: “First committee”) */
+  firstCommitteeId = signal<string | null>(null);
   committees = signal<any[]>([]);
   loading = signal(true);
   showModal = signal(false);
@@ -185,7 +191,8 @@ export class CommitteesComponent implements OnInit {
   pageSize = 9;
   searchQuery = '';
   statusFilter = '';
-  private searchTimer: any;
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  private navSub?: Subscription;
 
   form = this.fb.group({
     name: ['', Validators.required],
@@ -197,19 +204,50 @@ export class CommitteesComponent implements OnInit {
     turnAssignment: ['RANDOM'],
   });
 
-  constructor(private svc: CommitteeService, public auth: AuthService, private fb: FormBuilder) {}
+  constructor(
+    private svc: CommitteeService,
+    public auth: AuthService,
+    private fb: FormBuilder,
+    private router: Router,
+  ) {}
 
-  ngOnInit() { this.load(); }
+  ngOnInit() {
+    this.load();
+    this.navSub = this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(() => {
+        const segs = this.router.url.split('?')[0].split('/').filter(Boolean);
+        if (segs.length === 1 && segs[0] === 'committees') this.load();
+      });
+  }
+
+  ngOnDestroy() {
+    this.navSub?.unsubscribe();
+  }
 
   load() {
     this.loading.set(true);
     this.svc.getAll({ page: this.page(), limit: this.pageSize, status: this.statusFilter, search: this.searchQuery }).subscribe({
-      next: r => { this.committees.set(r.data || []); this.total.set(r.meta?.total || 0); this.loading.set(false); },
+      next: r => {
+        const rows = r.data || [];
+        this.committees.set(rows);
+        this.total.set(r.meta?.total || 0);
+        if (this.auth.isOrganizer && rows.length) {
+          const sorted = [...rows].sort((a: any, b: any) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+          this.firstCommitteeId.set(sorted[0]?.id ?? null);
+        } else this.firstCommitteeId.set(null);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
 
-  onSearch() { clearTimeout(this.searchTimer); this.searchTimer = setTimeout(() => { this.page.set(1); this.load(); }, 400); }
+  onSearch() {
+    if (this.searchTimer !== null) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => { this.page.set(1); this.load(); }, 400);
+  }
   prevPage() { if (this.page() > 1) { this.page.update(p => p - 1); this.load(); } }
   nextPage() { this.page.update(p => p + 1); this.load(); }
   openModal() { this.form.reset({ turnAssignment: 'RANDOM' }); this.formError.set(''); this.showModal.set(true); }

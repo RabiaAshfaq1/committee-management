@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { Router } from '@angular/router';
-import { environment } from '../../environments/environment';
+import { environment } from '../../../environments/environment';
 
 export interface User {
   id: string;
@@ -10,7 +10,7 @@ export interface User {
   email: string;
   phone?: string;
   cnic?: string;
-  role: 'SUPER_ADMIN' | 'ORGANIZER' | 'MEMBER';
+  role: 'ORGANIZER' | 'MEMBER';
   avatar?: string;
   isActive: boolean;
   createdAt: string;
@@ -40,8 +40,7 @@ export class AuthService {
   get currentUser(): User | null { return this.currentUserSubject.value; }
   get token(): string | null { return localStorage.getItem('token'); }
   get isLoggedIn(): boolean { return !!this.token; }
-  get isAdmin(): boolean { return this.currentUser?.role === 'SUPER_ADMIN'; }
-  get isOrganizer(): boolean { return ['SUPER_ADMIN', 'ORGANIZER'].includes(this.currentUser?.role || ''); }
+  get isOrganizer(): boolean { return this.currentUser?.role === 'ORGANIZER'; }
 
   login(email: string, password: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.API}/login`, { email, password }).pipe(

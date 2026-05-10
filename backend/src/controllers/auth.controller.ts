@@ -37,7 +37,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const allowedRoles = ['SUPER_ADMIN', 'ORGANIZER', 'MEMBER'];
+    const allowedRoles = ['ORGANIZER', 'MEMBER'];
     const userRole = role && allowedRoles.includes(role) ? role : 'MEMBER';
 
     const user = await prisma.user.create({

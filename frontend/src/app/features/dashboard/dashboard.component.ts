@@ -1,135 +1,103 @@
-import { Component, OnInit, signal, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Chart, registerables } from 'chart.js';
-Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="space-y-6 animate-fade-in">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-slate-800">Dashboard</h1>
-          <p class="text-slate-500 text-sm mt-0.5">Welcome back, {{ auth.currentUser?.name }} 👋</p>
-        </div>
-        <a routerLink="/committees" class="btn-primary text-sm">+ New Committee</a>
+    <div class="max-w-3xl mx-auto space-y-8 animate-fade-in px-2">
+      <div class="text-center space-y-2 pt-2">
+        <h1 class="text-2xl font-bold text-slate-800">Hello, {{ auth.currentUser?.name }}</h1>
+        <p class="text-slate-500 text-sm">
+          @if (auth.isOrganizer) {
+            Create a committee, invite members to the roster, then run monthly rounds from Rounds.
+          } @else {
+            Below is a quick summary of committees you belong to.
+          }
+        </p>
       </div>
 
-      <!-- Stat Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+      @if (auth.isOrganizer) {
+        <div class="flex justify-center">
+          <a routerLink="/committees" class="btn-primary text-sm px-8 py-3 rounded-2xl shadow-lg">+ New committee</a>
+        </div>
+      }
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         @if (loading()) {
-          @for (i of [1,2,3,4]; track i) {
-            <div class="glass-card p-6 h-28 skeleton"></div>
+          @for (i of [1,2,3]; track i) {
+            <div class="glass-card h-24 skeleton"></div>
           }
-        } @else {
-          @for (card of statCards(); track card.label) {
-            <div class="stat-card">
-              <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" [style.background]="card.bg">{{ card.icon }}</div>
-              <div>
-                <p class="text-slate-500 text-xs font-medium uppercase tracking-wide">{{ card.label }}</p>
-                <p class="text-2xl font-bold text-slate-800 font-mono mt-0.5">{{ card.value }}</p>
-                @if (card.sub) { <p class="text-xs mt-0.5" [class]="card.subClass">{{ card.sub }}</p> }
-              </div>
-            </div>
-          }
+        } @else if (stats()) {
+          <div class="glass-card p-5 text-center">
+            <p class="text-xs text-slate-500 uppercase tracking-wide">Committees</p>
+            <p class="text-2xl font-bold font-mono text-indigo-600 mt-1">{{ stats().totalCommittees }}</p>
+          </div>
+          <div class="glass-card p-5 text-center">
+            <p class="text-xs text-slate-500 uppercase tracking-wide">People in your circles</p>
+            <p class="text-2xl font-bold font-mono text-purple-600 mt-1">{{ stats().peopleInNetwork }}</p>
+            <p class="text-[10px] text-slate-400 mt-1">distinct members</p>
+          </div>
+          <div class="glass-card p-5 text-center">
+            <p class="text-xs text-slate-500 uppercase tracking-wide">Rounds</p>
+            <p class="text-lg font-bold text-slate-800 mt-1">
+              <span class="text-emerald-600">{{ stats().activeRounds }}</span>
+              <span class="text-slate-300 mx-1">/</span>
+              <span class="text-slate-600">{{ stats().completedRounds }}</span>
+            </p>
+            <p class="text-[10px] text-slate-400 mt-1">active / completed</p>
+          </div>
         }
       </div>
 
-      <!-- Charts -->
-      <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <div class="glass-card p-6 xl:col-span-2">
-          <h3 class="text-base font-semibold text-slate-700 mb-4">Monthly Collection Trend</h3>
-          <div class="relative h-56"><canvas #barChart></canvas></div>
-        </div>
-        <div class="glass-card p-6">
-          <h3 class="text-base font-semibold text-slate-700 mb-4">Payment Status</h3>
-          <div class="relative h-44"><canvas #pieChart></canvas></div>
-          <div class="mt-3 space-y-1.5">
-            @for (l of pieLabels; track l.label) {
-              <div class="flex items-center gap-2 text-xs text-slate-600">
-                <div class="w-3 h-3 rounded-full" [style.background]="l.color"></div>{{ l.label }}
-              </div>
-            }
-          </div>
-        </div>
-      </div>
-
-      <!-- Activity -->
       <div class="glass-card p-6">
-        <h3 class="text-base font-semibold text-slate-700 mb-4">Recent Activity</h3>
+        <h3 class="text-sm font-semibold text-slate-700 mb-4 text-center">Recent activity</h3>
         @if (!activities().length) {
-          <p class="text-slate-400 text-sm text-center py-6">No recent activity</p>
+          <p class="text-slate-400 text-sm text-center py-6">Nothing to show yet</p>
         } @else {
-          <div class="space-y-2">
+          <ul class="space-y-3 max-h-72 overflow-y-auto">
             @for (act of activities(); track $index) {
-              <div class="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm"
-                     [ngClass]="act.type==='payment'?'bg-green-100':act.type==='committee'?'bg-indigo-100':'bg-purple-100'">
-                  {{ act.type==='payment'?'💳':act.type==='committee'?'🏦':'🔄' }}
-                </div>
+              <li class="flex gap-3 text-sm text-slate-700 border-b border-slate-100 pb-3 last:border-0">
+                <span class="text-lg flex-shrink-0">{{ act.type === 'committee' ? '🏦' : '🔄' }}</span>
                 <div>
-                  <p class="text-sm text-slate-700">{{ act.message }}</p>
+                  <p>{{ act.message }}</p>
                   <p class="text-xs text-slate-400 mt-0.5">{{ act.time | date:'short' }}</p>
                 </div>
-              </div>
+              </li>
             }
-          </div>
+          </ul>
+        }
+      </div>
+
+      <div class="flex flex-wrap justify-center gap-3 pb-8">
+        <a routerLink="/committees" class="btn-secondary text-sm py-2 px-4 rounded-xl">Committees</a>
+        <a routerLink="/rounds" class="btn-secondary text-sm py-2 px-4 rounded-xl">Rounds</a>
+        @if (auth.isOrganizer) {
+          <a routerLink="/members" class="btn-secondary text-sm py-2 px-4 rounded-xl">Members</a>
         }
       </div>
     </div>
   `,
 })
-export class DashboardComponent implements OnInit, AfterViewInit {
-  @ViewChild('barChart') barRef!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('pieChart') pieRef!: ElementRef<HTMLCanvasElement>;
+export class DashboardComponent implements OnInit {
   loading = signal(true);
   stats = signal<any>(null);
   activities = signal<any[]>([]);
-  statCards = signal<any[]>([]);
-  pieLabels = [{ label: 'Paid', color: '#10B981' }, { label: 'Pending', color: '#F59E0B' }, { label: 'Late', color: '#EF4444' }];
 
   constructor(private dashSvc: DashboardService, public auth: AuthService) {}
 
   ngOnInit() {
     this.dashSvc.getStats().subscribe({
-      next: r => { this.stats.set(r.data); this.buildCards(r.data); this.loading.set(false); },
+      next: (r) => {
+        this.stats.set(r.data);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
-    this.dashSvc.getRecentActivity().subscribe({ next: r => this.activities.set(r.data || []) });
-  }
-
-  ngAfterViewInit() { setTimeout(() => this.renderCharts(), 600); }
-
-  buildCards(d: any) {
-    this.statCards.set([
-      { label: 'Total Committees', icon: '🏦', value: d.totalCommittees, bg: 'rgba(99,102,241,0.1)', sub: 'Active committees', subClass: 'text-indigo-500' },
-      { label: 'Total Members', icon: '👥', value: d.totalMembers, bg: 'rgba(139,92,246,0.1)', sub: 'Registered', subClass: 'text-purple-500' },
-      { label: 'Collected (Month)', icon: '💰', value: `₨${(d.totalCollectedMonth||0).toLocaleString()}`, bg: 'rgba(16,185,129,0.1)', sub: 'This month', subClass: 'text-emerald-500' },
-      { label: 'Pending + Late', icon: '⏳', value: (d.pendingPayments||0)+(d.latePayments||0), bg: 'rgba(245,158,11,0.1)', sub: `${d.latePayments} overdue`, subClass: 'text-red-500' },
-    ]);
-  }
-
-  renderCharts() {
-    const trend = this.stats()?.monthlyTrend || [];
-    if (this.barRef?.nativeElement) {
-      new Chart(this.barRef.nativeElement, {
-        type: 'bar',
-        data: { labels: trend.map((t: any) => t.month), datasets: [{ label: '₨', data: trend.map((t: any) => t.amount), backgroundColor: 'rgba(99,102,241,0.75)', borderRadius: 8, borderSkipped: false }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } } },
-      });
-    }
-    const s = this.stats();
-    if (this.pieRef?.nativeElement && s) {
-      new Chart(this.pieRef.nativeElement, {
-        type: 'doughnut',
-        data: { labels: ['Paid', 'Pending', 'Late'], datasets: [{ data: [s.totalCollectedMonth||0, s.pendingPayments||0, s.latePayments||0], backgroundColor: ['#10B981','#F59E0B','#EF4444'], borderWidth: 0, hoverOffset: 4 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '68%' },
-      });
-    }
+    this.dashSvc.getRecentActivity().subscribe({ next: (r) => this.activities.set(r.data || []) });
   }
 }

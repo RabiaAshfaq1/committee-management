@@ -57,7 +57,6 @@ import { AuthService } from '../../../core/services/auth.service';
                       class="w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all border-slate-200 bg-slate-50 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100">
                 <option value="MEMBER">Member</option>
                 <option value="ORGANIZER">Organizer</option>
-                <option value="SUPER_ADMIN">Super Admin</option>
               </select>
             </div>
             <div>

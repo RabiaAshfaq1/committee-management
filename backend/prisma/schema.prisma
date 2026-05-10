@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -20,7 +21,6 @@ model User {
   createdAt DateTime @default(now())
 
   committees CommitteeMember[]
-  payments   Payment[]
   organized  Committee[]       @relation("OrganizerCommittees")
 }
 
@@ -50,42 +50,38 @@ model CommitteeMember {
   createdAt   DateTime @default(now())
 
   user      User      @relation(fields: [userId], references: [id])
-  committee Committee @relation(fields: [committeeId], references: [id])
-  payments  Payment[]
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  roundSplits RoundContributionSplit[]
+}
+
+/// How the monthly pool is formed (e.g. two people give 5k + 5k for a 10k month).
+model RoundContributionSplit {
+  id        String   @id @default(uuid())
+  roundId   String
+  memberId  String
+  amount    Float
+  createdAt DateTime @default(now())
+
+  round  Round           @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  member CommitteeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
 
 model Round {
-  id           String      @id @default(uuid())
-  committeeId  String
-  roundNumber  Int
-  payoutUserId String?
-  payoutAmount Float?
-  status       RoundStatus @default(PENDING)
-  dueDate      DateTime?
-  createdAt    DateTime    @default(now())
+  id                  String      @id @default(uuid())
+  committeeId         String
+  roundNumber         Int
+  payoutUserId        String?
+  payoutAmount        Float?
+  payoutTransactionId String?
+  status              RoundStatus @default(PENDING)
+  dueDate             DateTime?
+  createdAt           DateTime    @default(now())
 
-  committee Committee @relation(fields: [committeeId], references: [id])
-  payments  Payment[]
-}
-
-model Payment {
-  id        String        @id @default(uuid())
-  roundId   String
-  memberId  String
-  userId    String
-  amount    Float
-  status    PaymentStatus @default(PENDING)
-  paidAt    DateTime?
-  note      String?
-  createdAt DateTime      @default(now())
-
-  round  Round           @relation(fields: [roundId], references: [id])
-  member CommitteeMember @relation(fields: [memberId], references: [id])
-  user   User            @relation(fields: [userId], references: [id])
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  contributionSplits RoundContributionSplit[]
 }
 
 enum Role {
-  SUPER_ADMIN
   ORGANIZER
   MEMBER
 }
@@ -100,12 +96,6 @@ enum RoundStatus {
   PENDING
   ACTIVE
   COMPLETED
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  LATE
 }
 
 enum TurnAssignment {

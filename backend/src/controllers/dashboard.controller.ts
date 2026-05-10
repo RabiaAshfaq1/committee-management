@@ -8,54 +8,58 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     const userId = req.user!.id;
     const role = req.user!.role;
 
-    const committeeWhere = role === 'ORGANIZER' ? { organizerId: userId } :
-      role === 'MEMBER' ? { members: { some: { userId } } } : {};
+    const committeeWhere =
+      role === 'ORGANIZER'
+        ? { organizerId: userId }
+        : { members: { some: { userId } } };
 
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const committeeIds =
+      role === 'ORGANIZER'
+        ? (
+            await prisma.committee.findMany({
+              where: { organizerId: userId },
+              select: { id: true },
+            })
+          ).map((c) => c.id)
+        : (
+            await prisma.committeeMember.findMany({
+              where: { userId },
+              select: { committeeId: true },
+            })
+          ).map((m) => m.committeeId);
 
-    const [
-      totalCommittees, totalMembers, activeRounds,
-      totalCollectedMonth, pendingPayments, latePayments,
-    ] = await Promise.all([
+    const uniqueMemberCount =
+      committeeIds.length === 0
+        ? 0
+        : (
+            await prisma.committeeMember.findMany({
+              where: { committeeId: { in: committeeIds } },
+              distinct: ['userId'],
+              select: { userId: true },
+            })
+          ).length;
+
+    const [totalCommittees, activeRounds, completedRounds] = await Promise.all([
       prisma.committee.count({ where: committeeWhere }),
-      prisma.user.count({ where: { role: 'MEMBER', isActive: true } }),
-      prisma.round.count({ where: { status: 'ACTIVE', committee: committeeWhere } }),
-      prisma.payment.aggregate({
-        where: { status: 'PAID', paidAt: { gte: startOfMonth, lte: endOfMonth } },
-        _sum: { amount: true },
+      prisma.round.count({
+        where: { status: 'ACTIVE', committee: committeeWhere },
       }),
-      prisma.payment.count({ where: { status: 'PENDING' } }),
-      prisma.payment.count({ where: { status: 'LATE' } }),
+      prisma.round.count({
+        where: { status: 'COMPLETED', committee: committeeWhere },
+      }),
     ]);
 
-    // Monthly trend (last 6 months)
-    const monthlyTrend = await Promise.all(
-      Array.from({ length: 6 }, (_, i) => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - i);
-        const start = new Date(d.getFullYear(), d.getMonth(), 1);
-        const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        return prisma.payment.aggregate({
-          where: { status: 'PAID', paidAt: { gte: start, lte: end } },
-          _sum: { amount: true },
-        }).then(result => ({
-          month: start.toLocaleString('default', { month: 'short', year: '2-digit' }),
-          amount: result._sum.amount || 0,
-        }));
-      })
+    sendSuccess(
+      res,
+      {
+        totalCommittees,
+        peopleInNetwork: uniqueMemberCount,
+        activeRounds,
+        completedRounds,
+        role,
+      },
+      'Dashboard stats fetched',
     );
-
-    sendSuccess(res, {
-      totalCommittees,
-      totalMembers,
-      activeRounds,
-      totalCollectedMonth: totalCollectedMonth._sum.amount || 0,
-      pendingPayments,
-      latePayments,
-      monthlyTrend: monthlyTrend.reverse(),
-    }, 'Dashboard stats fetched');
   } catch (err) {
     sendError(res, 'Failed to fetch stats', 500, String(err));
   }
@@ -63,46 +67,52 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
 
 export const getRecentActivity = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const [recentPayments, recentCommittees, recentRounds] = await Promise.all([
-      prisma.payment.findMany({
-        where: { status: 'PAID' },
-        take: 5, orderBy: { paidAt: 'desc' },
-        include: {
-          user: { select: { name: true } },
-          round: { select: { roundNumber: true, committee: { select: { name: true } } } },
-        },
-      }),
+    const userId = req.user!.id;
+    const role = req.user!.role;
+
+    const committeeWhere =
+      role === 'ORGANIZER'
+        ? { organizerId: userId }
+        : { members: { some: { userId } } };
+
+    const [recentCommittees, recentRounds] = await Promise.all([
       prisma.committee.findMany({
-        take: 3, orderBy: { createdAt: 'desc' },
+        where: committeeWhere,
+        take: 4,
+        orderBy: { createdAt: 'desc' },
         select: { id: true, name: true, createdAt: true, status: true },
       }),
       prisma.round.findMany({
-        take: 3, orderBy: { createdAt: 'desc' },
-        select: { id: true, roundNumber: true, status: true, createdAt: true,
-          committee: { select: { name: true } } },
+        where: { committee: committeeWhere },
+        take: 6,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          roundNumber: true,
+          status: true,
+          payoutTransactionId: true,
+          createdAt: true,
+          committee: { select: { name: true } },
+        },
       }),
     ]);
 
     const activities = [
-      ...recentPayments.map(p => ({
-        type: 'payment',
-        message: `${p.user.name} paid PKR ${p.amount} for ${p.round.committee.name} Round ${p.round.roundNumber}`,
-        time: p.paidAt,
-        status: 'paid',
-      })),
-      ...recentCommittees.map(c => ({
-        type: 'committee',
-        message: `Committee "${c.name}" was created`,
+      ...recentCommittees.map((c) => ({
+        type: 'committee' as const,
+        message: `Committee "${c.name}" · ${c.status}`,
         time: c.createdAt,
-        status: c.status.toLowerCase(),
       })),
-      ...recentRounds.map(r => ({
-        type: 'round',
-        message: `Round ${r.roundNumber} started for "${r.committee.name}"`,
+      ...recentRounds.map((r) => ({
+        type: 'round' as const,
+        message: `Round ${r.roundNumber} (${r.status}) · ${r.committee.name}${
+          r.payoutTransactionId ? ' · Tx recorded' : ''
+        }`,
         time: r.createdAt,
-        status: r.status.toLowerCase(),
       })),
-    ].sort((a, b) => new Date(b.time!).getTime() - new Date(a.time!).getTime()).slice(0, 10);
+    ]
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 12);
 
     sendSuccess(res, activities, 'Recent activity fetched');
   } catch (err) {
