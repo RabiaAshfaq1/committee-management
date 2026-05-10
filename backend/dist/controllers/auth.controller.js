@@ -28,7 +28,7 @@ const register = async (req, res) => {
             }
         }
         const hashedPassword = await bcryptjs_1.default.hash(password, 12);
-        const allowedRoles = ['SUPER_ADMIN', 'ORGANIZER', 'MEMBER'];
+        const allowedRoles = ['ORGANIZER', 'MEMBER'];
         const userRole = role && allowedRoles.includes(role) ? role : 'MEMBER';
         const user = await client_1.default.user.create({
             data: {

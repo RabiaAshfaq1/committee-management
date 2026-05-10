@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deactivateMember = exports.updateMember = exports.createMember = exports.getMemberById = exports.getAllMembers = void 0;
+exports.getMemberCommitteeHistory = exports.deactivateMember = exports.updateMember = exports.createMember = exports.getMemberById = exports.getAllMembers = void 0;
 const client_1 = __importDefault(require("../prisma/client"));
 const response_utils_1 = require("../utils/response.utils");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
@@ -55,17 +55,26 @@ const getMemberById = async (req, res) => {
                 role: true, avatar: true, isActive: true, createdAt: true,
                 committees: {
                     include: {
-                        committee: { select: { id: true, name: true, status: true, monthlyAmount: true } },
+                        committee: {
+                            select: {
+                                id: true,
+                                name: true,
+                                status: true,
+                                monthlyAmount: true,
+                                organizer: { select: { id: true, name: true, email: true } },
+                            },
+                        },
                     },
-                },
-                payments: {
-                    take: 20, orderBy: { createdAt: 'desc' },
-                    include: { round: { select: { roundNumber: true, dueDate: true } } },
                 },
             },
         });
         if (!member) {
             (0, response_utils_1.sendNotFound)(res, 'Member not found');
+            return;
+        }
+        if (req.user?.role === 'MEMBER' &&
+            req.user.id !== id) {
+            (0, response_utils_1.sendForbidden)(res, 'You can only view your own profile');
             return;
         }
         (0, response_utils_1.sendSuccess)(res, member);
@@ -136,4 +145,62 @@ const deactivateMember = async (req, res) => {
     }
 };
 exports.deactivateMember = deactivateMember;
+/** Participation summary: committees joined, payout rounds as recipient, transaction IDs on record */
+const getMemberCommitteeHistory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (req.user?.role === 'MEMBER' && req.user.id !== id) {
+            (0, response_utils_1.sendForbidden)(res, 'You can only view your own history');
+            return;
+        }
+        const user = await client_1.default.user.findUnique({
+            where: { id },
+            select: { id: true, name: true, role: true },
+        });
+        if (!user || user.role !== 'MEMBER') {
+            (0, response_utils_1.sendNotFound)(res, 'Member not found');
+            return;
+        }
+        const memberships = await client_1.default.committeeMember.findMany({
+            where: { userId: id },
+            include: {
+                committee: {
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true,
+                        monthlyAmount: true,
+                        organizer: { select: { id: true, name: true, email: true } },
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        const payoutRounds = await client_1.default.round.findMany({
+            where: { payoutUserId: id },
+            orderBy: { createdAt: 'desc' },
+            take: 50,
+            select: {
+                id: true,
+                roundNumber: true,
+                status: true,
+                payoutAmount: true,
+                payoutTransactionId: true,
+                dueDate: true,
+                createdAt: true,
+                committee: { select: { id: true, name: true } },
+            },
+        });
+        const summary = {
+            committeesJoined: memberships.length,
+            timesReceivedPayout: payoutRounds.filter((r) => r.status === 'COMPLETED').length,
+            transactionIdsRecorded: payoutRounds.filter((r) => !!r.payoutTransactionId).length,
+        };
+        (0, response_utils_1.sendSuccess)(res, { memberships, payoutRounds, summary }, 'History fetched');
+    }
+    catch (err) {
+        (0, response_utils_1.sendError)(res, 'Failed to fetch history', 500, String(err));
+    }
+};
+exports.getMemberCommitteeHistory = getMemberCommitteeHistory;
 //# sourceMappingURL=member.controller.js.map

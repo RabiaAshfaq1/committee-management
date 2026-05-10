@@ -5,4 +5,6 @@ export declare const getMemberById: (req: AuthRequest, res: Response) => Promise
 export declare const createMember: (req: AuthRequest, res: Response) => Promise<void>;
 export declare const updateMember: (req: AuthRequest, res: Response) => Promise<void>;
 export declare const deactivateMember: (req: AuthRequest, res: Response) => Promise<void>;
+/** Participation summary: committees joined, payout rounds as recipient, transaction IDs on record */
+export declare const getMemberCommitteeHistory: (req: AuthRequest, res: Response) => Promise<void>;
 //# sourceMappingURL=member.controller.d.ts.map

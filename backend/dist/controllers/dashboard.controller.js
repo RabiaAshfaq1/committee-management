@@ -10,44 +10,40 @@ const getDashboardStats = async (req, res) => {
     try {
         const userId = req.user.id;
         const role = req.user.role;
-        const committeeWhere = role === 'ORGANIZER' ? { organizerId: userId } :
-            role === 'MEMBER' ? { members: { some: { userId } } } : {};
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        const [totalCommittees, totalMembers, activeRounds, totalCollectedMonth, pendingPayments, latePayments,] = await Promise.all([
+        const committeeWhere = role === 'ORGANIZER'
+            ? { organizerId: userId }
+            : { members: { some: { userId } } };
+        const committeeIds = role === 'ORGANIZER'
+            ? (await client_1.default.committee.findMany({
+                where: { organizerId: userId },
+                select: { id: true },
+            })).map((c) => c.id)
+            : (await client_1.default.committeeMember.findMany({
+                where: { userId },
+                select: { committeeId: true },
+            })).map((m) => m.committeeId);
+        const uniqueMemberCount = committeeIds.length === 0
+            ? 0
+            : (await client_1.default.committeeMember.findMany({
+                where: { committeeId: { in: committeeIds } },
+                distinct: ['userId'],
+                select: { userId: true },
+            })).length;
+        const [totalCommittees, activeRounds, completedRounds] = await Promise.all([
             client_1.default.committee.count({ where: committeeWhere }),
-            client_1.default.user.count({ where: { role: 'MEMBER', isActive: true } }),
-            client_1.default.round.count({ where: { status: 'ACTIVE', committee: committeeWhere } }),
-            client_1.default.payment.aggregate({
-                where: { status: 'PAID', paidAt: { gte: startOfMonth, lte: endOfMonth } },
-                _sum: { amount: true },
+            client_1.default.round.count({
+                where: { status: 'ACTIVE', committee: committeeWhere },
             }),
-            client_1.default.payment.count({ where: { status: 'PENDING' } }),
-            client_1.default.payment.count({ where: { status: 'LATE' } }),
+            client_1.default.round.count({
+                where: { status: 'COMPLETED', committee: committeeWhere },
+            }),
         ]);
-        // Monthly trend (last 6 months)
-        const monthlyTrend = await Promise.all(Array.from({ length: 6 }, (_, i) => {
-            const d = new Date();
-            d.setMonth(d.getMonth() - i);
-            const start = new Date(d.getFullYear(), d.getMonth(), 1);
-            const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-            return client_1.default.payment.aggregate({
-                where: { status: 'PAID', paidAt: { gte: start, lte: end } },
-                _sum: { amount: true },
-            }).then(result => ({
-                month: start.toLocaleString('default', { month: 'short', year: '2-digit' }),
-                amount: result._sum.amount || 0,
-            }));
-        }));
         (0, response_utils_1.sendSuccess)(res, {
             totalCommittees,
-            totalMembers,
+            peopleInNetwork: uniqueMemberCount,
             activeRounds,
-            totalCollectedMonth: totalCollectedMonth._sum.amount || 0,
-            pendingPayments,
-            latePayments,
-            monthlyTrend: monthlyTrend.reverse(),
+            completedRounds,
+            role,
         }, 'Dashboard stats fetched');
     }
     catch (err) {
@@ -57,45 +53,46 @@ const getDashboardStats = async (req, res) => {
 exports.getDashboardStats = getDashboardStats;
 const getRecentActivity = async (req, res) => {
     try {
-        const [recentPayments, recentCommittees, recentRounds] = await Promise.all([
-            client_1.default.payment.findMany({
-                where: { status: 'PAID' },
-                take: 5, orderBy: { paidAt: 'desc' },
-                include: {
-                    user: { select: { name: true } },
-                    round: { select: { roundNumber: true, committee: { select: { name: true } } } },
-                },
-            }),
+        const userId = req.user.id;
+        const role = req.user.role;
+        const committeeWhere = role === 'ORGANIZER'
+            ? { organizerId: userId }
+            : { members: { some: { userId } } };
+        const [recentCommittees, recentRounds] = await Promise.all([
             client_1.default.committee.findMany({
-                take: 3, orderBy: { createdAt: 'desc' },
+                where: committeeWhere,
+                take: 4,
+                orderBy: { createdAt: 'desc' },
                 select: { id: true, name: true, createdAt: true, status: true },
             }),
             client_1.default.round.findMany({
-                take: 3, orderBy: { createdAt: 'desc' },
-                select: { id: true, roundNumber: true, status: true, createdAt: true,
-                    committee: { select: { name: true } } },
+                where: { committee: committeeWhere },
+                take: 6,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    roundNumber: true,
+                    status: true,
+                    payoutTransactionId: true,
+                    createdAt: true,
+                    committee: { select: { name: true } },
+                },
             }),
         ]);
         const activities = [
-            ...recentPayments.map(p => ({
-                type: 'payment',
-                message: `${p.user.name} paid PKR ${p.amount} for ${p.round.committee.name} Round ${p.round.roundNumber}`,
-                time: p.paidAt,
-                status: 'paid',
-            })),
-            ...recentCommittees.map(c => ({
+            ...recentCommittees.map((c) => ({
                 type: 'committee',
-                message: `Committee "${c.name}" was created`,
+                message: `Committee "${c.name}" · ${c.status}`,
                 time: c.createdAt,
-                status: c.status.toLowerCase(),
             })),
-            ...recentRounds.map(r => ({
+            ...recentRounds.map((r) => ({
                 type: 'round',
-                message: `Round ${r.roundNumber} started for "${r.committee.name}"`,
+                message: `Round ${r.roundNumber} (${r.status}) · ${r.committee.name}${r.payoutTransactionId ? ' · Tx recorded' : ''}`,
                 time: r.createdAt,
-                status: r.status.toLowerCase(),
             })),
-        ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
+        ]
+            .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+            .slice(0, 12);
         (0, response_utils_1.sendSuccess)(res, activities, 'Recent activity fetched');
     }
     catch (err) {

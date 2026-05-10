@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requireAnyRole = exports.requireOrganizer = exports.requireAdmin = exports.requireRole = void 0;
+exports.requireAnyRole = exports.requireOrganizer = exports.requireRole = void 0;
 const response_utils_1 = require("../utils/response.utils");
 const requireRole = (...roles) => {
     return (req, res, next) => {
@@ -16,7 +16,6 @@ const requireRole = (...roles) => {
     };
 };
 exports.requireRole = requireRole;
-exports.requireAdmin = (0, exports.requireRole)('SUPER_ADMIN');
-exports.requireOrganizer = (0, exports.requireRole)('SUPER_ADMIN', 'ORGANIZER');
-exports.requireAnyRole = (0, exports.requireRole)('SUPER_ADMIN', 'ORGANIZER', 'MEMBER');
+exports.requireOrganizer = (0, exports.requireRole)('ORGANIZER');
+exports.requireAnyRole = (0, exports.requireRole)('ORGANIZER', 'MEMBER');
 //# sourceMappingURL=role.middleware.js.map

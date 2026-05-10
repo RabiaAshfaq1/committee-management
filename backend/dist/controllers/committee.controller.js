@@ -47,7 +47,6 @@ const getAllCommittees = async (req, res) => {
             where['status'] = status;
         if (search)
             where['name'] = { contains: search, mode: 'insensitive' };
-        // Members see only their committees
         if (req.user?.role === 'MEMBER') {
             where['members'] = { some: { userId: req.user.id } };
         }
@@ -94,13 +93,25 @@ const getCommitteeById = async (req, res) => {
                 rounds: {
                     orderBy: { roundNumber: 'asc' },
                     include: {
-                        _count: { select: { payments: true } },
+                        _count: { select: { contributionSplits: true } },
                     },
                 },
             },
         });
         if (!committee) {
             (0, response_utils_1.sendNotFound)(res, 'Committee not found');
+            return;
+        }
+        const user = req.user;
+        if (user?.role === 'MEMBER') {
+            const allowed = committee.members.some((m) => m.userId === user.id);
+            if (!allowed) {
+                (0, response_utils_1.sendForbidden)(res, 'You are not part of this committee');
+                return;
+            }
+        }
+        else if (user?.role === 'ORGANIZER' && committee.organizerId !== user.id) {
+            (0, response_utils_1.sendForbidden)(res, 'You can only open committees you organize');
             return;
         }
         (0, response_utils_1.sendSuccess)(res, committee, 'Committee fetched');
@@ -155,8 +166,6 @@ const deleteCommittee = async (req, res) => {
             (0, response_utils_1.sendForbidden)(res);
             return;
         }
-        // Delete related data in order
-        await client_1.default.payment.deleteMany({ where: { round: { committeeId: id } } });
         await client_1.default.round.deleteMany({ where: { committeeId: id } });
         await client_1.default.committeeMember.deleteMany({ where: { committeeId: id } });
         await client_1.default.committee.delete({ where: { id } });
@@ -179,8 +188,17 @@ const addMember = async (req, res) => {
             (0, response_utils_1.sendNotFound)(res, 'Committee not found');
             return;
         }
+        if (req.user.role === 'ORGANIZER' &&
+            committee.organizerId !== req.user.id) {
+            (0, response_utils_1.sendForbidden)(res, 'You can only add members to your own committees');
+            return;
+        }
         if (committee.members.length >= committee.totalMembers) {
             (0, response_utils_1.sendBadRequest)(res, 'Committee is full');
+            return;
+        }
+        if (!userId || turnNumber === undefined || turnNumber === null) {
+            (0, response_utils_1.sendBadRequest)(res, 'userId and turnNumber are required');
             return;
         }
         const alreadyMember = committee.members.find((m) => m.userId === userId);
@@ -212,10 +230,18 @@ const addMember = async (req, res) => {
 exports.addMember = addMember;
 const removeMember = async (req, res) => {
     try {
-        const { memberId } = req.params;
-        const member = await client_1.default.committeeMember.findUnique({ where: { id: memberId } });
+        const { id: committeeId, memberId } = req.params;
+        const member = await client_1.default.committeeMember.findFirst({
+            where: { id: memberId, committeeId },
+            include: { committee: { select: { organizerId: true } } },
+        });
         if (!member) {
-            (0, response_utils_1.sendNotFound)(res, 'Member not found');
+            (0, response_utils_1.sendNotFound)(res, 'Member not found on this committee');
+            return;
+        }
+        if (req.user.role === 'ORGANIZER' &&
+            member.committee.organizerId !== req.user.id) {
+            (0, response_utils_1.sendForbidden)(res, 'You can only remove members from your own committees');
             return;
         }
         await client_1.default.committeeMember.delete({ where: { id: memberId } });

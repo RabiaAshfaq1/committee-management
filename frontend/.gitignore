@@ -28,6 +28,9 @@ yarn-error.log
 !.vscode/extensions.json
 .history/*
 
+# Generated for Vercel / CI (from NG_APP_API_URL)
+/src/environments/environment.deploy.ts
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/
