@@ -99,7 +99,7 @@ Use **two Vercel projects**: one for `backend`, one for `frontend`. Deploy the *
    npx prisma db push
    ```
 
-**Notes:** The API is wired for Vercel via `backend/api/index.ts` + `backend/vercel.json`. Prisma uses an extra Linux engine (`debian-openssl-3.0.x`) for serverless. First request after idle can be slow (cold start).
+**Notes:** On Vercel, Express is served from `backend/src/index.ts` (default export) per [Vercel’s Express guide](https://vercel.com/guides/using-express-with-vercel). Prisma includes a Linux engine for serverless. Clear **Output Directory** in the Vercel project if you set one by mistake. Cold starts can add latency on the first request.
 
 ### 2) Frontend project
 

@@ -18,6 +18,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
+// Root (browser / uptime checks)
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'committee-management-api',
+    health: '/health',
+    api: '/api/auth, /api/committees, …',
+  });
+});
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -41,8 +50,8 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ success: false, message: 'Internal server error', error: err.message });
 });
 
-// Vercel serverless runs the app via api/index.ts — do not bind a port there
-if (process.env.VERCEL !== '1') {
+// Local / non-Vercel: listen. On Vercel, `VERCEL` is set — single serverless function, no listen.
+if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
