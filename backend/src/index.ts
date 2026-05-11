@@ -50,7 +50,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ success: false, message: 'Internal server error', error: err.message });
 });
 
-// Local / non-Vercel: listen. On Vercel, `VERCEL` is set — single serverless function, no listen.
+// Local / `node dist/index.js`: listen. Vercel sets VERCEL=1 — no listen (api/index.js loads this file).
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);

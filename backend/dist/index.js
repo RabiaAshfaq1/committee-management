@@ -19,6 +19,14 @@ app.use((0, cors_1.default)({ origin: '*', credentials: true }));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use((0, morgan_1.default)('dev'));
+// Root (browser / uptime checks)
+app.get('/', (_req, res) => {
+    res.json({
+        service: 'committee-management-api',
+        health: '/health',
+        api: '/api/auth, /api/committees, …',
+    });
+});
 // Health check
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -38,8 +46,8 @@ app.use((err, _req, res, _next) => {
     console.error(err.stack);
     res.status(500).json({ success: false, message: 'Internal server error', error: err.message });
 });
-// Vercel serverless runs the app via api/index.ts — do not bind a port there
-if (process.env.VERCEL !== '1') {
+// Local / `node dist/index.js`: listen. Vercel sets VERCEL=1 — no listen (api/index.js loads this file).
+if (!process.env.VERCEL) {
     app.listen(PORT, () => {
         console.log(`🚀 Server running on http://localhost:${PORT}`);
         console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);

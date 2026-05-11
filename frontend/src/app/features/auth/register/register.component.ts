@@ -103,7 +103,23 @@ export class RegisterComponent {
     this.loading.set(true); this.error.set('');
     this.auth.register(this.form.value as any).subscribe({
       next: () => this.router.navigate(['/dashboard']),
-      error: (err) => { this.error.set(err?.error?.message || 'Registration failed'); this.loading.set(false); },
+      error: (err) => {
+        this.error.set(this.describeRegisterError(err));
+        this.loading.set(false);
+      },
     });
+  }
+
+  private describeRegisterError(err: { status?: number; error?: { message?: string } }): string {
+    const s = err?.status;
+    if (s === 0) {
+      return 'Cannot reach the API (network). Check NG_APP_API_URL matches your deployed backend.';
+    }
+    if (s === 404) {
+      return 'API not found (404). Fix backend deploy or NG_APP_API_URL (.../api).';
+    }
+    const m = err?.error?.message;
+    if (typeof m === 'string' && m.trim()) return m;
+    return 'Registration failed';
   }
 }

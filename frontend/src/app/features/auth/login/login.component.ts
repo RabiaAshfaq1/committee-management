@@ -90,7 +90,24 @@ export class LoginComponent {
     this.loading.set(true); this.error.set('');
     this.auth.login(this.form.value.email!, this.form.value.password!).subscribe({
       next: () => this.router.navigate(['/dashboard']),
-      error: (err) => { this.error.set(err?.error?.message || 'Invalid credentials'); this.loading.set(false); },
+      error: (err) => {
+        this.error.set(this.describeLoginError(err));
+        this.loading.set(false);
+      },
     });
+  }
+
+  /** Wrong password vs API down / 404 (Vercel routing) — avoids always showing "Invalid credentials". */
+  private describeLoginError(err: { status?: number; error?: { message?: string } }): string {
+    const s = err?.status;
+    if (s === 0) {
+      return 'Cannot reach the API (network). Check connection and that the site was built with NG_APP_API_URL.';
+    }
+    if (s === 404) {
+      return 'API not found (404). Fix backend deploy or set NG_APP_API_URL to https://YOUR-BACKEND.vercel.app/api';
+    }
+    const m = err?.error?.message;
+    if (typeof m === 'string' && m.trim()) return m;
+    return 'Invalid credentials';
   }
 }
