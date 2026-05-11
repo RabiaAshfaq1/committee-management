@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -101,10 +102,16 @@ export class LoginComponent {
   private describeLoginError(err: { status?: number; error?: { message?: string } }): string {
     const s = err?.status;
     if (s === 0) {
-      return 'Cannot reach the API (network). Check connection and that the site was built with NG_APP_API_URL.';
+      return `Cannot reach the API (often CORS or wrong URL). This app calls: ${environment.apiUrl}. In Vercel → frontend project → set NG_APP_API_URL=https://YOUR-BACKEND.vercel.app/api, save, then Redeploy.`;
     }
     if (s === 404) {
       return 'API not found (404). Fix backend deploy or set NG_APP_API_URL to https://YOUR-BACKEND.vercel.app/api';
+    }
+    if (s === 403) {
+      const m = err?.error?.message;
+      return typeof m === 'string' && m.trim()
+        ? m
+        : '403 Forbidden. On Vercel: Settings → Deployment Protection → turn off for Production (or allow your frontend URL).';
     }
     const m = err?.error?.message;
     if (typeof m === 'string' && m.trim()) return m;

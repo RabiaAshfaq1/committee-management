@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-register',
@@ -113,10 +114,16 @@ export class RegisterComponent {
   private describeRegisterError(err: { status?: number; error?: { message?: string } }): string {
     const s = err?.status;
     if (s === 0) {
-      return 'Cannot reach the API (network). Check NG_APP_API_URL matches your deployed backend.';
+      return `Cannot reach the API. Calling: ${environment.apiUrl}. Set NG_APP_API_URL on Vercel (frontend) to your backend + /api, then Redeploy.`;
     }
     if (s === 404) {
       return 'API not found (404). Fix backend deploy or NG_APP_API_URL (.../api).';
+    }
+    if (s === 403) {
+      const m = err?.error?.message;
+      return typeof m === 'string' && m.trim()
+        ? m
+        : '403 Forbidden. Check Vercel Deployment Protection on the backend project.';
     }
     const m = err?.error?.message;
     if (typeof m === 'string' && m.trim()) return m;

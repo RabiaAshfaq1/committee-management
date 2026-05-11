@@ -13,7 +13,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({ origin: '*', credentials: true }));
+// Echo caller Origin (works for Vercel frontend → Vercel API). JWT in header — no cookies, so credentials:false avoids CORS edge cases.
+app.use(cors({ origin: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
