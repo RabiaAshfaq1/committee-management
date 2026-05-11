@@ -1,6 +1,6 @@
 {
   "version": 2,
   "installCommand": "npm install --include=dev",
-  "buildCommand": "npx prisma generate",
+  "buildCommand": "npm run prisma:generate",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }
