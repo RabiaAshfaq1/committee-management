@@ -1,0 +1,247 @@
+<div class="amanat-landing min-h-screen text-landing-body">
+  <header class="landing-header">
+    <div class="landing-header__inner">
+      <a routerLink="/" class="landing-brand" (click)="closeMobileNav()">
+        <span class="landing-brand__mark">A</span>
+        <div>
+          <p class="landing-brand__title">Amanat</p>
+          <p class="landing-brand__tag">Har Committee Ka Bharosa</p>
+        </div>
+      </a>
+
+      <button type="button" class="landing-nav-toggle" aria-label="Menu" (click)="toggleMobileNav()">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="landing-nav" [class.landing-nav--open]="mobileNavOpen()">
+        <a routerLink="/auth/login" class="landing-nav__link" (click)="closeMobileNav()">Login</a>
+        <a routerLink="/auth/register" [queryParams]="{ role: 'MEMBER' }" class="landing-nav__pill" (click)="closeMobileNav()">Register</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="landing-main">
+    <section class="hero">
+      <div class="hero__bg" aria-hidden="true"></div>
+      <div class="hero__aurora" aria-hidden="true"></div>
+      <div class="hero__mesh" aria-hidden="true"></div>
+      <div class="hero__constellation" aria-hidden="true"></div>
+      <div class="hero__dust" aria-hidden="true"></div>
+      <div class="hero__orb hero__orb--1" aria-hidden="true"></div>
+      <div class="hero__orb hero__orb--2" aria-hidden="true"></div>
+      <div class="hero__orb hero__orb--3" aria-hidden="true"></div>
+      <div class="hero__vignette" aria-hidden="true"></div>
+
+      <div class="hero__content landing-container">
+        <div class="hero__copy" data-aos="fade-up" data-aos-duration="900">
+          <p class="hero__eyebrow">Pakistan · Committees · Trust</p>
+          <h1 class="hero__title font-display">Built on Trust. Powered by Community.</h1>
+          <p class="hero__subtitle font-display">Amanat — Har Committee Ka Bharosa</p>
+          <p class="hero__lead">
+            Track payments, build trust, and manage committees in one secure modern platform.
+          </p>
+          <div class="hero__cta">
+            <a
+              routerLink="/auth/register"
+              [queryParams]="{ role: 'ADMIN' }"
+              class="btn btn--gold btn--lg"
+              data-aos="zoom-in"
+              data-aos-delay="100"
+            >
+              Create a committee
+            </a>
+            <a
+              routerLink="/auth/register"
+              [queryParams]="{ role: 'MEMBER' }"
+              class="btn btn--outline-light btn--lg"
+              data-aos="zoom-in"
+              data-aos-delay="160"
+            >
+              Join as a member
+            </a>
+          </div>
+          <p class="hero__note">Both <strong>admins</strong> and <strong>members</strong> can self-register.</p>
+        </div>
+
+        <div class="hero__panel-wrap" data-aos="fade-left" data-aos-delay="120">
+          <div class="glass-card hero__panel hero__panel--trust">
+            <p class="hero__panel-label">Trust snapshot</p>
+            <div class="hero__score-row">
+              <span class="hero__score font-display">88</span>
+              <span class="hero__score-suffix">/100</span>
+            </div>
+            <p class="hero__panel-desc">
+              Trust scores combine payment behaviour, feedback, completed committees, and account age.
+            </p>
+            <div class="hero__chips">
+              @for (b of displayBadges().slice(0, 4); track b.name) {
+                <span class="hero__chip" [style.--chip]="b.color">{{ b.name }}</span>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--muted" id="how">
+      <div class="landing-container">
+        <header class="section__head" data-aos="fade-up">
+          <h2 class="section__title font-display">How it works</h2>
+          <p class="section__sub">Three simple steps — from sign-up to your turn.</p>
+        </header>
+        <div class="steps">
+          @for (step of steps; track step.n) {
+            <article
+              class="glass-card step-card"
+              [attr.data-aos]="'fade-up'"
+              [attr.data-aos-delay]="120 + step.n * 90"
+            >
+              <div class="step-card__num font-display">{{ step.n }}</div>
+              <h3 class="step-card__title">{{ step.title }}</h3>
+              <p class="step-card__body">{{ step.body }}</p>
+            </article>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--dark" id="badges">
+      <div class="landing-container">
+        <header class="section__head section__head--light" data-aos="fade-up">
+          <h2 class="section__title font-display">Trust &amp; badges</h2>
+          <p class="section__sub section__sub--muted">
+            Six badges earned from real committee behaviour — scroll to explore.
+          </p>
+        </header>
+
+        <div class="badge-grid">
+          @for (b of displayBadges(); track b.name) {
+            <article
+              class="badge-card"
+              [class.badge-card--warning]="b.variant === 'warning'"
+              [class.badge-card--gold]="b.variant === 'gold'"
+              [attr.data-aos]="'fade-up'"
+              [attr.data-aos-delay]="$index * 70"
+              [title]="b.condition"
+            >
+              <div class="badge-card__glow" [style.--glow]="b.color"></div>
+              <div class="badge-card__icon" [style.--icon-bg]="badgeTint(b.color)">
+                @switch (b.icon) {
+                  @case ('shield') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path d="M12 3l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V7l8-4z" />
+                      <path d="M9 12l2 2 4-4" />
+                    </svg>
+                  }
+                  @case ('star') {
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path
+                        d="M12 2l2.9 8.9L24 9.8l-7 5.1L19 24l-7-4.9L5 24l2-9.1L0 9.8l9.1 1.1L12 2z"
+                      />
+                    </svg>
+                  }
+                  @case ('user') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+                    </svg>
+                  }
+                  @case ('medal') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <circle cx="12" cy="8" r="6" />
+                      <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" />
+                    </svg>
+                  }
+                  @case ('fire') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path d="M8.5 14.5A2.5 2.5 0 0111 12c0-1.5-1-2.5-1-4 .5 2.5-2 4-2.5 6.5z" />
+                      <path d="M12 22c4.5 0 6-3 6-5.5 0-3-2-5-4-7-1 2-2 4.5-2 7.5 0 2.5 0 5-4 5z" />
+                    </svg>
+                  }
+                  @default {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path d="M12 9v4M12 17h.01" />
+                      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
+                  }
+                }
+              </div>
+              <h3 class="badge-card__name">{{ b.name }}</h3>
+              <p class="badge-card__desc">{{ b.description }}</p>
+              <p class="badge-card__hint">{{ b.condition }}</p>
+            </article>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="why">
+      <div class="landing-container">
+        <header class="section__head" data-aos="fade-up">
+          <h2 class="section__title font-display">Why Amanat?</h2>
+        </header>
+        <div class="feature-grid">
+          @for (f of features; track f.title) {
+            <div class="glass-card feature-card" [attr.data-aos]="'fade-up'" [attr.data-aos-delay]="$index * 80">
+              <div class="feature-card__accent"></div>
+              <h3 class="feature-card__title">{{ f.title }}</h3>
+              <p class="feature-card__text">{{ f.text }}</p>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--muted" id="stories">
+      <div class="landing-container">
+        <header class="section__head" data-aos="fade-up">
+          <h2 class="section__title font-display">What people say</h2>
+        </header>
+        <div class="testimonial-grid">
+          @for (t of testimonials; track t.name) {
+            <blockquote class="glass-card testimonial-card" [attr.data-aos]="'flip-up'" [attr.data-aos-delay]="$index * 90">
+              <span class="testimonial-card__stars" aria-hidden="true">★★★★★</span>
+              <p class="testimonial-card__quote">“{{ t.quote }}”</p>
+              <footer class="testimonial-card__foot">
+                <strong>{{ t.name }}</strong>
+                <span>· {{ t.city }}</span>
+              </footer>
+            </blockquote>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-band">
+      <div class="landing-container cta-band__inner" data-aos="zoom-in">
+        <h2 class="cta-band__title font-display">Get started today</h2>
+        <p class="cta-band__sub">Create a committee or join one — with Amanat.</p>
+        <div class="cta-band__actions">
+          <a routerLink="/auth/register" [queryParams]="{ role: 'ADMIN' }" class="btn btn--light">Create a committee</a>
+          <a routerLink="/auth/register" [queryParams]="{ role: 'MEMBER' }" class="btn btn--ghost-light">Join as a member</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="landing-footer">
+      <div class="landing-container landing-footer__grid">
+        <div class="landing-footer__brand">
+          <span class="landing-brand__mark landing-brand__mark--sm">A</span>
+          <div>
+            <p class="landing-footer__name font-display">Amanat</p>
+            <p class="landing-footer__tag">Amanat — Har Committee Ka Bharosa</p>
+          </div>
+        </div>
+        <nav class="landing-footer__links" aria-label="Footer">
+          <a routerLink="/auth/login">Login</a>
+          <a routerLink="/auth/register">Register</a>
+          <a routerLink="/auth/register" [queryParams]="{ role: 'ADMIN' }">Admin signup</a>
+          <a routerLink="/auth/register" [queryParams]="{ role: 'MEMBER' }">Member signup</a>
+          <a routerLink="/dashboard">Dashboard</a>
+        </nav>
+        <p class="landing-footer__copy">© {{ year }} Amanat · Committee management for Pakistani circles.</p>
+      </div>
+    </footer>
+  </main>
+</div>

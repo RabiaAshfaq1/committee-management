@@ -16,5 +16,5 @@ export const requireRole = (...roles: string[]) => {
   };
 };
 
-export const requireOrganizer = requireRole('ORGANIZER');
-export const requireAnyRole = requireRole('ORGANIZER', 'MEMBER');
+export const requireAdmin = requireRole('ADMIN');
+export const requireAnyRole = requireRole('ADMIN', 'MEMBER');

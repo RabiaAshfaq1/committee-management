@@ -19,13 +19,16 @@ import { AuthService } from '../../core/services/auth.service';
           <h1 class="text-2xl font-bold text-slate-800">Committees</h1>
           <p class="text-slate-500 text-sm">Manage your rotating savings committees</p>
         </div>
-        @if (auth.isOrganizer) {
-          <button (click)="openModal()" class="btn-primary text-sm">+ Create Committee</button>
+        @if (auth.isAdmin) {
+          <button (click)="openModal()" class="btn-primary text-sm rounded-xl shadow-md">+ Create Committee</button>
         }
       </div>
 
       <!-- Search & Filter -->
-      <div class="glass-card p-4 flex flex-wrap gap-3">
+      <div class="glass-card p-4 flex flex-wrap gap-3 items-center">
+        <span class="text-slate-400" aria-hidden="true">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </span>
         <input [(ngModel)]="searchQuery" (ngModelChange)="onSearch()" placeholder="Search committees..."
                class="flex-1 min-w-48 px-4 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 bg-slate-50"/>
         <select [(ngModel)]="statusFilter" (ngModelChange)="load()"
@@ -49,7 +52,7 @@ import { AuthService } from '../../core/services/auth.service';
           <p class="text-5xl mb-4">🏦</p>
           <h3 class="text-lg font-semibold text-slate-600">No committees yet</h3>
           <p class="text-slate-400 text-sm mt-1">Create your first committee to get started</p>
-          @if (auth.isOrganizer) {
+          @if (auth.isAdmin) {
             <button (click)="openModal()" class="btn-primary mt-4 text-sm">+ Create Committee</button>
           }
         </div>
@@ -59,7 +62,7 @@ import { AuthService } from '../../core/services/auth.service';
             <div class="glass-card p-6 flex flex-col gap-4 hover:shadow-lg transition-shadow">
               <div class="flex items-start justify-between">
                 <div class="flex-1 min-w-0">
-                  @if (auth.isOrganizer && c.id === firstCommitteeId()) {
+                  @if (auth.isAdmin && c.id === firstCommitteeId()) {
                     <span class="badge badge-info text-[10px] mb-1">First committee</span>
                   }
                   <h3 class="font-bold text-slate-800 truncate">{{ c.name }}</h3>
@@ -73,26 +76,35 @@ import { AuthService } from '../../core/services/auth.service';
               <div class="grid grid-cols-2 gap-3">
                 <div class="bg-slate-50 rounded-xl p-3">
                   <p class="text-xs text-slate-400">Monthly pool</p>
-                  <p class="font-bold text-slate-800 font-mono">₨{{ c.monthlyAmount?.toLocaleString() }}</p>
+                  <p class="font-bold text-emerald-600 font-mono">₨{{ c.monthlyAmount?.toLocaleString() }}</p>
                 </div>
                 <div class="bg-slate-50 rounded-xl p-3">
                   <p class="text-xs text-slate-400">Members</p>
-                  <p class="font-bold text-slate-800">{{ c._count?.members }}/{{ c.totalMembers }}</p>
+                  <p class="font-bold text-slate-800">{{ c.slotsFilled ?? c._count?.members }}/{{ c.totalSlots }}</p>
                 </div>
               </div>
               <!-- Progress -->
               <div>
                 <div class="flex justify-between text-xs text-slate-400 mb-1">
-                  <span>Members filled</span>
-                  <span>{{ getPercent(c._count?.members, c.totalMembers) }}%</span>
+                  <span>Slots filled</span>
+                  <span>{{ getPercent(c.slotsFilled ?? c._count?.members, c.totalSlots) }}%</span>
                 </div>
                 <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="getPercent(c._count?.members, c.totalMembers)"></div>
+                  <div class="progress-fill" [style.width.%]="getPercent(c.slotsFilled ?? c._count?.members, c.totalSlots)"></div>
+                </div>
+              </div>
+              <div class="mt-2">
+                <div class="flex justify-between text-xs text-slate-400 mb-1">
+                  <span>Rounds completed</span>
+                  <span>{{ roundProgress(c) }}%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div class="h-full rounded-full bg-emerald-500 transition-all duration-700" [style.width.%]="roundProgress(c)"></div>
                 </div>
               </div>
               <div class="flex items-center justify-between pt-1">
-                <p class="text-xs text-slate-400">By {{ c.organizer?.name }}</p>
-                <a [routerLink]="['/committees', c.id]" class="btn-secondary text-xs py-1.5 px-3">View Details →</a>
+                <p class="text-xs text-slate-400">By {{ c.admin?.name }}</p>
+                <a [routerLink]="['/committees', c.id]" class="btn-secondary text-xs py-1.5 px-3 text-indigo-700 border-indigo-200">View details</a>
               </div>
             </div>
           }
@@ -133,8 +145,8 @@ import { AuthService } from '../../core/services/auth.service';
               </div>
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1.5">Total Members *</label>
-                  <input formControlName="totalMembers" type="number" min="2" placeholder="e.g. 12"
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5">Total slots *</label>
+                  <input formControlName="totalSlots" type="number" min="2" placeholder="e.g. 12"
                          class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm outline-none bg-slate-50 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/>
                 </div>
                 <div>
@@ -156,12 +168,12 @@ import { AuthService } from '../../core/services/auth.service';
                 </div>
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Turn Assignment *</label>
-                <select formControlName="turnAssignment"
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Turn method *</label>
+                <select formControlName="turnMethod"
                         class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm outline-none bg-slate-50 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100">
-                  <option value="RANDOM">🎲 Random (Auto lucky draw)</option>
-                  <option value="MANUAL">✏️ Manual (organizer picks)</option>
-                  <option value="BIDDING">💵 Bidding (Highest bid wins)</option>
+                  <option value="SPIN">🎲 Spin (lucky draw)</option>
+                  <option value="MANUAL">✏️ Manual (admin picks)</option>
+                  <option value="BIDDING">💵 Bidding</option>
                 </select>
               </div>
               <div class="flex gap-3 pt-2">
@@ -179,7 +191,7 @@ import { AuthService } from '../../core/services/auth.service';
   `,
 })
 export class CommitteesComponent implements OnInit, OnDestroy {
-  /** Organizer: oldest committee on the current list (badge: “First committee”) */
+  /** Admin: oldest committee on the current list (badge: “First committee”) */
   firstCommitteeId = signal<string | null>(null);
   committees = signal<any[]>([]);
   loading = signal(true);
@@ -197,11 +209,11 @@ export class CommitteesComponent implements OnInit, OnDestroy {
   form = this.fb.group({
     name: ['', Validators.required],
     description: [''],
-    totalMembers: [null, [Validators.required, Validators.min(2)]],
+    totalSlots: [null, [Validators.required, Validators.min(2)]],
     monthlyAmount: [null, [Validators.required, Validators.min(1)]],
     startDate: ['', Validators.required],
     durationMonths: [null, [Validators.required, Validators.min(1)]],
-    turnAssignment: ['RANDOM'],
+    turnMethod: ['SPIN'],
   });
 
   constructor(
@@ -232,7 +244,7 @@ export class CommitteesComponent implements OnInit, OnDestroy {
         const rows = r.data || [];
         this.committees.set(rows);
         this.total.set(r.meta?.total || 0);
-        if (this.auth.isOrganizer && rows.length) {
+        if (this.auth.isAdmin && rows.length) {
           const sorted = [...rows].sort((a: any, b: any) =>
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
           );
@@ -250,13 +262,30 @@ export class CommitteesComponent implements OnInit, OnDestroy {
   }
   prevPage() { if (this.page() > 1) { this.page.update(p => p - 1); this.load(); } }
   nextPage() { this.page.update(p => p + 1); this.load(); }
-  openModal() { this.form.reset({ turnAssignment: 'RANDOM' }); this.formError.set(''); this.showModal.set(true); }
+  openModal() { this.form.reset({ turnMethod: 'SPIN' }); this.formError.set(''); this.showModal.set(true); }
   getPercent(a: number, b: number) { return b ? Math.round((a / b) * 100) : 0; }
+
+  roundProgress(c: any): number {
+    const done = Number(c.completedRounds ?? 0);
+    const total = Number(c.durationMonths ?? 1);
+    return total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  }
 
   onSubmit() {
     if (this.form.invalid) return;
     this.submitting.set(true); this.formError.set('');
-    this.svc.create(this.form.value).subscribe({
+    const v = this.form.value;
+    this.svc
+      .create({
+        name: v.name,
+        description: v.description || null,
+        totalSlots: Number(v.totalSlots),
+        monthlyAmount: Number(v.monthlyAmount),
+        startDate: v.startDate,
+        durationMonths: Number(v.durationMonths),
+        turnMethod: v.turnMethod,
+      })
+      .subscribe({
       next: () => { this.showModal.set(false); this.submitting.set(false); this.load(); },
       error: err => { this.formError.set(err?.error?.message || 'Failed to create'); this.submitting.set(false); },
     });

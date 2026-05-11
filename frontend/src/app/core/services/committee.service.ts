@@ -21,4 +21,7 @@ export class CommitteeService {
   addMember(id: string, data: any): Observable<any> { return this.http.post<any>(`${this.API}/${id}/members`, data); }
   removeMember(id: string, memberId: string): Observable<any> { return this.http.delete<any>(`${this.API}/${id}/members/${memberId}`); }
   assignTurns(id: string, data?: any): Observable<any> { return this.http.post<any>(`${this.API}/${id}/assign-turns`, data || {}); }
+  startRound(id: string, body: Record<string, unknown>): Observable<any> {
+    return this.http.post<any>(`${this.API}/${id}/start-round`, body);
+  }
 }

@@ -10,7 +10,7 @@ export interface User {
   email: string;
   phone?: string;
   cnic?: string;
-  role: 'ORGANIZER' | 'MEMBER';
+  role: 'ADMIN' | 'MEMBER';
   avatar?: string;
   isActive: boolean;
   createdAt: string;
@@ -40,29 +40,29 @@ export class AuthService {
   get currentUser(): User | null { return this.currentUserSubject.value; }
   get token(): string | null { return localStorage.getItem('token'); }
   get isLoggedIn(): boolean { return !!this.token; }
-  get isOrganizer(): boolean { return this.currentUser?.role === 'ORGANIZER'; }
+  get isAdmin(): boolean { return this.currentUser?.role === 'ADMIN'; }
 
   login(email: string, password: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.API}/login`, { email, password }).pipe(
-      tap(res => {
-        if (res.success) {
+      tap((res) => {
+        if (res.success && res.data?.token && res.data?.user) {
           localStorage.setItem('token', res.data.token);
           localStorage.setItem('user', JSON.stringify(res.data.user));
           this.currentUserSubject.next(res.data.user);
         }
-      })
+      }),
     );
   }
 
   register(data: Partial<User> & { password: string }): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.API}/register`, data).pipe(
-      tap(res => {
-        if (res.success) {
+      tap((res) => {
+        if (res.success && res.data?.token && res.data?.user) {
           localStorage.setItem('token', res.data.token);
           localStorage.setItem('user', JSON.stringify(res.data.user));
           this.currentUserSubject.next(res.data.user);
         }
-      })
+      }),
     );
   }
 

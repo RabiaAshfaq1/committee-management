@@ -8,6 +8,9 @@ import committeeRoutes from './routes/committee.routes';
 import memberRoutes from './routes/member.routes';
 import roundRoutes from './routes/round.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import paymentRoutes from './routes/payment.routes';
+import badgeRoutes from './routes/badge.routes';
+import feedbackRoutes from './routes/feedback.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,6 +42,9 @@ app.use('/api/committees', committeeRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/rounds', roundRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/badges', badgeRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // 404 handler
 app.use((_req, res) => {

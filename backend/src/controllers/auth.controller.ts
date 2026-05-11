@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import { Prisma, Role } from '@prisma/client';
 import prisma from '../prisma/client';
 import { signToken } from '../utils/jwt.utils';
 import {
@@ -14,7 +15,14 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, phone, cnic, password, role } = req.body;
+    const raw = req.body as Record<string, unknown>;
+    const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+    const email = typeof raw.email === 'string' ? raw.email.trim().toLowerCase() : '';
+    const phone = typeof raw.phone === 'string' && raw.phone.trim() ? raw.phone.trim() : undefined;
+    const cnicRaw = typeof raw.cnic === 'string' ? raw.cnic.trim() : '';
+    const cnic = cnicRaw || undefined;
+    const password = typeof raw.password === 'string' ? raw.password : '';
+    const role = typeof raw.role === 'string' ? raw.role : undefined;
 
     if (!name || !email || !password) {
       sendBadRequest(res, 'Name, email and password are required');
@@ -35,17 +43,21 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    if (password.length < 6) {
+      sendBadRequest(res, 'Password must be at least 6 characters');
+      return;
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const allowedRoles = ['ORGANIZER', 'MEMBER'];
-    const userRole = role && allowedRoles.includes(role) ? role : 'MEMBER';
+    const userRole: Role = role === 'ADMIN' ? Role.ADMIN : Role.MEMBER;
 
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        phone: phone || null,
-        cnic: cnic || null,
+        phone: phone ?? null,
+        cnic: cnic ?? null,
         password: hashedPassword,
         role: userRole,
       },
@@ -65,7 +77,42 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const token = signToken({ id: user.id, email: user.email, role: user.role });
     sendCreated(res, { user, token }, 'Registration successful');
   } catch (err) {
-    sendError(res, 'Registration failed', 500, String(err));
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === 'P2022') {
+        sendError(
+          res,
+          'Database is missing a required column (often trustScore on User). Run prisma/sql/add-user-trust-score.sql in Supabase SQL Editor, or align your DB with prisma/schema.prisma.',
+          503,
+          err.message,
+        );
+        return;
+      }
+      if (err.code === 'P2002') {
+        const target = (err.meta?.target as string[] | undefined)?.join(', ') || 'field';
+        sendBadRequest(res, `That ${target} is already in use`);
+        return;
+      }
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('trustScore') && msg.includes('does not exist')) {
+      sendError(
+        res,
+        'Database is missing User.trustScore. Run backend/prisma/sql/add-user-trust-score.sql on your database (Supabase → SQL Editor).',
+        503,
+        msg,
+      );
+      return;
+    }
+    if (msg.includes('not found in enum') && msg.includes('Role')) {
+      sendError(
+        res,
+        'Database Role enum does not match Prisma (e.g. rows use ORGANIZER, or ADMIN is missing from Postgres). From backend/, run: pwsh -File scripts/fix-legacy-role-enum.ps1 — or run prisma/sql/add-role-enum-admin.sql, add-role-enum-member.sql, then migrate-legacy-user-roles.sql in order in Supabase SQL Editor.',
+        503,
+        msg,
+      );
+      return;
+    }
+    sendError(res, 'Registration failed', 500, msg);
   }
 };
 

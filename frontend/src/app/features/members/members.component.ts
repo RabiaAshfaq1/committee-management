@@ -23,7 +23,10 @@ import { MemberService } from '../../core/services/member.service';
         <button type="button" (click)="openAdd()" class="btn-primary text-sm">+ Add member</button>
       </div>
 
-      <div class="glass-card p-4 flex flex-wrap gap-3">
+      <div class="glass-card p-4 flex flex-wrap gap-3 items-center">
+        <span class="text-slate-400 pl-1" aria-hidden="true">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </span>
         <input [(ngModel)]="searchQuery" (ngModelChange)="onSearch()"
                placeholder="Search name, email, CNIC or phone..."
                class="flex-1 min-w-52 px-4 py-2 rounded-xl border border-slate-200 text-sm outline-none bg-slate-50 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/>
@@ -50,8 +53,10 @@ import { MemberService } from '../../core/services/member.service';
             <table class="data-table">
               <thead>
                 <tr>
+                  <th></th>
                   <th>Name</th>
                   <th>Email</th>
+                  <th>Trust</th>
                   <th>Phone</th>
                   <th>CNIC</th>
                   <th>Committees</th>
@@ -62,8 +67,22 @@ import { MemberService } from '../../core/services/member.service';
               <tbody>
                 @for (m of members(); track m.id) {
                   <tr>
+                    <td>
+                      <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                           style="background: linear-gradient(135deg,#6366F1,#8B5CF6)">{{ initials(m.name) }}</div>
+                    </td>
                     <td class="font-medium text-slate-800">{{ m.name }}</td>
                     <td class="text-slate-600 text-sm">{{ m.email }}</td>
+                    <td>
+                      <div class="relative w-10 h-10 mx-auto" [title]="'Trust ' + (m.trustScore ?? 0)">
+                        <svg class="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="14" stroke="#e2e8f0" stroke-width="4" fill="none" />
+                          <circle cx="18" cy="18" r="14" stroke="#6366f1" stroke-width="4" fill="none"
+                                  stroke-dasharray="88" [attr.stroke-dashoffset]="88 - (88 * (m.trustScore ?? 0)) / 100" stroke-linecap="round" />
+                        </svg>
+                        <span class="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-slate-700">{{ m.trustScore ?? 0 }}</span>
+                      </div>
+                    </td>
                     <td class="text-slate-500 text-sm">{{ m.phone || '—' }}</td>
                     <td class="text-slate-500 text-sm font-mono">{{ m.cnic || '—' }}</td>
                     <td class="font-mono">{{ m._count?.committees ?? 0 }}</td>
@@ -73,6 +92,7 @@ import { MemberService } from '../../core/services/member.service';
                       </span>
                     </td>
                     <td class="flex flex-wrap gap-1 justify-end">
+                      <a [routerLink]="['/profile', m.id]" class="btn-secondary text-xs py-1 px-2 no-underline inline-block text-center">View profile</a>
                       <button type="button" class="btn-secondary text-xs py-1 px-2" (click)="openHistory(m)">History</button>
                       <button type="button" class="btn-secondary text-xs py-1 px-2" (click)="openEdit(m)">Edit</button>
                       @if (m.isActive) {
@@ -164,8 +184,8 @@ import { MemberService } from '../../core/services/member.service';
                     <p class="text-xs text-slate-500 mt-1">Completed payouts (recipient)</p>
                   </div>
                   <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 text-center">
-                    <p class="text-2xl font-bold text-slate-800">{{ h.summary?.transactionIdsRecorded ?? 0 }}</p>
-                    <p class="text-xs text-slate-500 mt-1">Transaction IDs saved</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ h.summary?.payoutProofRecorded ?? 0 }}</p>
+                    <p class="text-xs text-slate-500 mt-1">Payout proofs saved</p>
                   </div>
                 </div>
                 <div class="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
@@ -179,7 +199,7 @@ import { MemberService } from '../../core/services/member.service';
                           <thead>
                             <tr>
                               <th>Committee</th>
-                              <th>Organizer</th>
+                              <th>Admin</th>
                               <th>Status</th>
                               <th class="text-right">Monthly pool</th>
                             </tr>
@@ -188,7 +208,7 @@ import { MemberService } from '../../core/services/member.service';
                             @for (row of h.memberships; track row.id) {
                               <tr>
                                 <td class="font-medium">{{ row.committee?.name }}</td>
-                                <td class="text-slate-600">{{ row.committee?.organizer?.name ?? '—' }}</td>
+                                <td class="text-slate-600">{{ row.committee?.admin?.name ?? '—' }}</td>
                                 <td><span class="badge badge-muted text-xs">{{ row.committee?.status }}</span></td>
                                 <td class="text-right font-mono">{{ row.committee?.monthlyAmount | number }}</td>
                               </tr>
@@ -210,8 +230,7 @@ import { MemberService } from '../../core/services/member.service';
                               <th>Committee</th>
                               <th>Round</th>
                               <th>Status</th>
-                              <th class="text-right">Amount</th>
-                              <th>Tx ID</th>
+                              <th>Payout proof</th>
                               <th>Due</th>
                             </tr>
                           </thead>
@@ -221,9 +240,8 @@ import { MemberService } from '../../core/services/member.service';
                                 <td class="font-medium">{{ r.committee?.name }}</td>
                                 <td class="font-mono">#{{ r.roundNumber }}</td>
                                 <td><span class="badge badge-muted text-xs">{{ r.status }}</span></td>
-                                <td class="text-right font-mono">{{ r.payoutAmount | number }}</td>
-                                <td class="font-mono text-xs max-w-[140px] truncate" [title]="r.payoutTransactionId || ''">
-                                  {{ r.payoutTransactionId || '—' }}
+                                <td class="font-mono text-xs max-w-[140px] truncate" [title]="r.recipientTransactionId || ''">
+                                  {{ r.recipientTransactionId || '—' }}
                                 </td>
                                 <td class="text-slate-500 text-xs whitespace-nowrap">{{ r.dueDate | date:'mediumDate' }}</td>
                               </tr>
@@ -279,6 +297,15 @@ import { MemberService } from '../../core/services/member.service';
   `,
 })
 export class MembersComponent implements OnInit, OnDestroy {
+  initials(name: string): string {
+    return (name || '?')
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
   members = signal<any[]>([]);
   loading = signal(true);
   total = signal(0);
@@ -296,7 +323,7 @@ export class MembersComponent implements OnInit, OnDestroy {
   historyData = signal<{
     memberships: any[];
     payoutRounds: any[];
-    summary: { committeesJoined: number; timesReceivedPayout: number; transactionIdsRecorded: number };
+    summary: { committeesJoined: number; timesReceivedPayout: number; payoutProofRecorded: number };
   } | null>(null);
   historyLoading = signal(false);
   submitting = signal(false);

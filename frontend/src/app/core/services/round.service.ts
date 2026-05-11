@@ -8,10 +8,15 @@ export class RoundService {
   private API = `${environment.apiUrl}/rounds`;
   constructor(private http: HttpClient) {}
 
-  start(data: any): Observable<any> { return this.http.post<any>(`${this.API}/start`, data); }
-  getByCommittee(committeeId: string): Observable<any> { return this.http.get<any>(`${this.API}/${committeeId}`); }
-  complete(id: string): Observable<any> { return this.http.put<any>(`${this.API}/${id}/complete`, {}); }
-  submitPayoutTx(roundId: string, transactionId: string): Observable<any> {
-    return this.http.patch<any>(`${this.API}/round/${roundId}/payout-tx`, { transactionId });
+  getByCommittee(committeeId: string): Observable<any> {
+    return this.http.get<any>(`${this.API}/${committeeId}`);
+  }
+
+  complete(id: string): Observable<any> {
+    return this.http.put<any>(`${this.API}/round/${id}/complete`, {});
+  }
+
+  submitRecipientTx(roundId: string, transactionId: string): Observable<any> {
+    return this.http.patch<any>(`${this.API}/round/${roundId}/recipient-tx`, { transactionId });
   }
 }

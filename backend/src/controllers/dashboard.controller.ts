@@ -9,15 +9,15 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     const role = req.user!.role;
 
     const committeeWhere =
-      role === 'ORGANIZER'
-        ? { organizerId: userId }
+      role === 'ADMIN'
+        ? { adminId: userId }
         : { members: { some: { userId } } };
 
     const committeeIds =
-      role === 'ORGANIZER'
+      role === 'ADMIN'
         ? (
             await prisma.committee.findMany({
-              where: { organizerId: userId },
+              where: { adminId: userId },
               select: { id: true },
             })
           ).map((c) => c.id)
@@ -39,6 +39,17 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             })
           ).length;
 
+    const pendingConfirmations =
+      role === 'ADMIN' && committeeIds.length
+        ? await prisma.payment.count({
+            where: {
+              status: 'PENDING',
+              transactionId: { not: null },
+              round: { committeeId: { in: committeeIds } },
+            },
+          })
+        : 0;
+
     const [totalCommittees, activeRounds, completedRounds] = await Promise.all([
       prisma.committee.count({ where: committeeWhere }),
       prisma.round.count({
@@ -56,6 +67,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         peopleInNetwork: uniqueMemberCount,
         activeRounds,
         completedRounds,
+        pendingConfirmations,
         role,
       },
       'Dashboard stats fetched',
@@ -71,8 +83,8 @@ export const getRecentActivity = async (req: AuthRequest, res: Response): Promis
     const role = req.user!.role;
 
     const committeeWhere =
-      role === 'ORGANIZER'
-        ? { organizerId: userId }
+      role === 'ADMIN'
+        ? { adminId: userId }
         : { members: { some: { userId } } };
 
     const [recentCommittees, recentRounds] = await Promise.all([
@@ -90,7 +102,7 @@ export const getRecentActivity = async (req: AuthRequest, res: Response): Promis
           id: true,
           roundNumber: true,
           status: true,
-          payoutTransactionId: true,
+          recipientTransactionId: true,
           createdAt: true,
           committee: { select: { name: true } },
         },
@@ -106,7 +118,7 @@ export const getRecentActivity = async (req: AuthRequest, res: Response): Promis
       ...recentRounds.map((r) => ({
         type: 'round' as const,
         message: `Round ${r.roundNumber} (${r.status}) · ${r.committee.name}${
-          r.payoutTransactionId ? ' · Tx recorded' : ''
+          r.recipientTransactionId ? ' · Payout tx' : ''
         }`,
         time: r.createdAt,
       })),

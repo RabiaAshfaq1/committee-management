@@ -2,74 +2,92 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
-import { environment } from '../../../environments/environment';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, MatButtonModule],
   template: `
-    <div class="min-h-screen flex" style="background: linear-gradient(135deg,#1E1B4B 0%,#312E81 50%,#4C1D95 100%);">
-      <!-- Left hero panel -->
-      <div class="hidden lg:flex flex-col justify-center items-center w-1/2 p-12 text-white">
-        <div class="max-w-md text-center animate-slide-up">
-          <div class="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center animate-pulse-glow"
-               style="background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2)">
-            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
+    <div class="min-h-screen flex items-center justify-center p-6" style="background-color: #f8fafc">
+      <div
+        class="w-full max-w-md rounded-2xl shadow-xl border border-white/70 p-8 md:p-10 backdrop-blur-md"
+        style="background: rgba(255,255,255,0.92)"
+      >
+        <div class="text-center mb-8">
+          <p class="font-playfair text-3xl md:text-4xl font-bold" style="color: #6366f1">Amanat</p>
+          <p class="text-slate-500 text-sm mt-2 leading-snug">Har Committee Ka Bharosa</p>
+          <p class="text-slate-400 text-xs mt-4">Sign in to continue</p>
+        </div>
+        @if (error()) {
+          <div class="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 animate-fade-in">
+            <p class="text-red-700 text-sm">{{ error() }}</p>
           </div>
-          <h1 class="text-4xl font-bold mb-4">CommitteeMS</h1>
-          <p class="text-indigo-200 text-lg leading-relaxed">Committees, rounds, and payout proof — simple and clear.</p>
-          <div class="mt-10 grid grid-cols-3 gap-4">
-            @for (s of stats; track s.label) {
-              <div class="p-4 rounded-xl" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1)">
-                <p class="text-2xl font-bold">{{ s.value }}</p>
-                <p class="text-indigo-300 text-xs mt-1">{{ s.label }}</p>
-              </div>
+        }
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+          <div>
+            <label for="login-email" class="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+            <input
+              id="login-email"
+              type="email"
+              formControlName="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              class="block w-full rounded-xl border bg-white px-4 py-3 text-sm text-slate-900 shadow-sm transition-shadow placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/35 focus:border-indigo-500"
+              [ngClass]="{
+                'border-slate-300': !(form.controls.email.invalid && form.controls.email.touched),
+                'border-red-400 ring-1 ring-red-200': form.controls.email.invalid && form.controls.email.touched,
+              }"
+            />
+            @if (form.controls.email.invalid && form.controls.email.touched) {
+              <p class="text-red-600 text-xs mt-1.5">{{ fieldError('email') }}</p>
             }
           </div>
-        </div>
-      </div>
-      <!-- Login form -->
-      <div class="flex-1 flex items-center justify-center p-6">
-        <div class="w-full max-w-md animate-slide-up">
-          <div class="glass-card p-8" style="background:rgba(255,255,255,0.96)">
-            <div class="text-center mb-8">
-              <h2 class="text-2xl font-bold text-slate-800">Welcome back</h2>
-              <p class="text-slate-500 mt-1 text-sm">Sign in to your account</p>
-            </div>
-            @if (error()) {
-              <div class="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 animate-fade-in">
-                <p class="text-red-700 text-sm">{{ error() }}</p>
-              </div>
+          <div>
+            <label for="login-password" class="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+            <input
+              id="login-password"
+              type="password"
+              formControlName="password"
+              autocomplete="current-password"
+              class="block w-full rounded-xl border bg-white px-4 py-3 text-sm text-slate-900 shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500/35 focus:border-indigo-500"
+              [ngClass]="{
+                'border-slate-300': !(form.controls.password.invalid && form.controls.password.touched),
+                'border-red-400 ring-1 ring-red-200': form.controls.password.invalid && form.controls.password.touched,
+              }"
+            />
+            @if (form.controls.password.invalid && form.controls.password.touched) {
+              <p class="text-red-600 text-xs mt-1.5">{{ fieldError('password') }}</p>
             }
-            <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
-                <input formControlName="email" type="email" placeholder="you@example.com"
-                       class="w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all
-                              border-slate-200 bg-slate-50 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
-                <input formControlName="password" [type]="showPass() ? 'text' : 'password'" placeholder="••••••••"
-                       class="w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all
-                              border-slate-200 bg-slate-50 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/>
-              </div>
-              <button type="submit" [disabled]="loading() || form.invalid"
-                      class="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-60">
-                @if (loading()) { <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Signing in... }
-                @else { Sign In }
-              </button>
-            </form>
-            <p class="text-center text-sm text-slate-500 mt-6">
-              Don't have an account? <a routerLink="/auth/register" class="text-indigo-600 font-semibold hover:underline">Register</a>
-            </p>
           </div>
-        </div>
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="loading() || form.invalid"
+            class="!w-full !rounded-xl !py-2.5 !font-semibold !text-white"
+            style="background: var(--gradient-cta, linear-gradient(135deg,#5b5ef0,#8b7fd9))"
+          >
+            @if (loading()) {
+              <span class="inline-flex items-center gap-2">
+                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Signing in…
+              </span>
+            } @else {
+              Log in
+            }
+          </button>
+        </form>
+        <p class="text-center text-sm text-slate-500 mt-6">
+          Don't have an account?
+          <a routerLink="/auth/register" class="text-indigo-600 font-semibold hover:underline">Register</a>
+        </p>
       </div>
     </div>
   `,
@@ -81,24 +99,41 @@ export class LoginComponent {
   });
   loading = signal(false);
   error = signal('');
-  showPass = signal(false);
-  stats = [{ value: '500+', label: 'Committees' }, { value: '10K+', label: 'Members' }, { value: '₨2M+', label: 'Managed' }];
 
   constructor(private fb: FormBuilder, private auth: AuthService, private router: Router) {}
 
-  onSubmit() {
-    if (this.form.invalid) return;
-    this.loading.set(true); this.error.set('');
-    this.auth.login(this.form.value.email!, this.form.value.password!).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
-      error: (err) => {
-        this.error.set(this.describeLoginError(err));
-        this.loading.set(false);
-      },
-    });
+  onSubmit(): void {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    this.loading.set(true);
+    this.error.set('');
+    const email = this.form.value.email!.trim();
+    const password = this.form.value.password!;
+    this.auth
+      .login(email, password)
+      .pipe(finalize(() => this.loading.set(false)))
+      .subscribe({
+        next: (res) => {
+          if (res.success) {
+            void this.router.navigate(['/dashboard']);
+            return;
+          }
+          this.error.set(res.message || 'Sign in failed');
+        },
+        error: (err) => this.error.set(this.describeLoginError(err)),
+      });
   }
 
-  /** Wrong password vs API down / 404 (Vercel routing) — avoids always showing "Invalid credentials". */
+  fieldError(key: 'email' | 'password'): string {
+    const c = this.form.get(key);
+    if (!c?.errors) return '';
+    if (c.errors['required']) return 'This field is required';
+    if (key === 'email' && c.errors['email']) return 'Enter a valid email address';
+    return 'Invalid value';
+  }
+
   private describeLoginError(err: { status?: number; error?: { message?: string } }): string {
     const s = err?.status;
     if (s === 0) {

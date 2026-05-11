@@ -9,20 +9,26 @@ import {
   sendBadRequest,
   sendForbidden,
 } from '../utils/response.utils';
+import { evaluateBadges } from '../utils/badge.engine';
+
+function pickRandomUserId(members: { userId: string }[]): string | null {
+  if (!members.length) return null;
+  return members[Math.floor(Math.random() * members.length)].userId;
+}
 
 export const createCommittee = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const {
       name,
       description,
-      totalMembers,
+      totalSlots,
       monthlyAmount,
       startDate,
       durationMonths,
-      turnAssignment,
+      turnMethod,
     } = req.body;
 
-    if (!name || !totalMembers || !monthlyAmount || !startDate || !durationMonths) {
+    if (!name || !totalSlots || !monthlyAmount || !startDate || !durationMonths) {
       sendBadRequest(res, 'Missing required fields');
       return;
     }
@@ -31,15 +37,15 @@ export const createCommittee = async (req: AuthRequest, res: Response): Promise<
       data: {
         name,
         description,
-        totalMembers: Number(totalMembers),
+        totalSlots: Number(totalSlots),
         monthlyAmount: Number(monthlyAmount),
         startDate: new Date(startDate),
         durationMonths: Number(durationMonths),
-        turnAssignment: turnAssignment || 'RANDOM',
-        organizerId: req.user!.id,
+        turnMethod: turnMethod || 'MANUAL',
+        adminId: req.user!.id,
       },
       include: {
-        organizer: { select: { id: true, name: true, email: true } },
+        admin: { select: { id: true, name: true, email: true } },
         _count: { select: { members: true, rounds: true } },
       },
     });
@@ -63,23 +69,41 @@ export const getAllCommittees = async (req: AuthRequest, res: Response): Promise
 
     if (req.user?.role === 'MEMBER') {
       where['members'] = { some: { userId: req.user.id } };
-    } else if (req.user?.role === 'ORGANIZER') {
-      where['organizerId'] = req.user.id;
+    } else if (req.user?.role === 'ADMIN') {
+      where['adminId'] = req.user.id;
     }
 
-    const [committees, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       prisma.committee.findMany({
         where,
         skip,
         take: limitNum,
         include: {
-          organizer: { select: { id: true, name: true, email: true } },
+          admin: { select: { id: true, name: true, email: true } },
+          members: { select: { shareCount: true } },
           _count: { select: { members: true, rounds: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.committee.count({ where }),
     ]);
+
+    const committeeIds = rows.map((r) => r.id);
+    const completedRows =
+      committeeIds.length === 0
+        ? []
+        : await prisma.round.groupBy({
+            by: ['committeeId'],
+            where: { committeeId: { in: committeeIds }, status: 'COMPLETED' },
+            _count: { _all: true },
+          });
+    const completedMap = Object.fromEntries(completedRows.map((g) => [g.committeeId, g._count._all]));
+
+    const committees = rows.map(({ members, ...c }) => ({
+      ...c,
+      slotsFilled: members.reduce((s, m) => s + m.shareCount, 0),
+      completedRounds: completedMap[c.id] ?? 0,
+    }));
 
     sendSuccess(res, committees, 'Committees fetched', 200, {
       total,
@@ -97,17 +121,19 @@ export const getCommitteeById = async (req: AuthRequest, res: Response): Promise
     const committee = await prisma.committee.findUnique({
       where: { id },
       include: {
-        organizer: { select: { id: true, name: true, email: true } },
+        admin: { select: { id: true, name: true, email: true } },
         members: {
           include: {
-            user: { select: { id: true, name: true, email: true, phone: true, cnic: true, avatar: true } },
+            user: {
+              select: { id: true, name: true, email: true, phone: true, cnic: true, avatar: true, trustScore: true },
+            },
           },
           orderBy: { turnNumber: 'asc' },
         },
         rounds: {
           orderBy: { roundNumber: 'asc' },
           include: {
-            _count: { select: { contributionSplits: true } },
+            payments: { include: { user: { select: { id: true, name: true } } } },
           },
         },
       },
@@ -125,8 +151,8 @@ export const getCommitteeById = async (req: AuthRequest, res: Response): Promise
         sendForbidden(res, 'You are not part of this committee');
         return;
       }
-    } else if (user?.role === 'ORGANIZER' && committee.organizerId !== user.id) {
-      sendForbidden(res, 'You can only open committees you organize');
+    } else if (user?.role === 'ADMIN' && committee.adminId !== user.id) {
+      sendForbidden(res, 'You can only open committees you manage');
       return;
     }
 
@@ -139,7 +165,7 @@ export const getCommitteeById = async (req: AuthRequest, res: Response): Promise
 export const updateCommittee = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name, description, status, monthlyAmount, durationMonths } = req.body;
+    const { name, description, status, monthlyAmount, durationMonths, turnMethod } = req.body;
 
     const committee = await prisma.committee.findUnique({ where: { id } });
     if (!committee) {
@@ -147,7 +173,7 @@ export const updateCommittee = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    if (req.user?.role === 'ORGANIZER' && committee.organizerId !== req.user.id) {
+    if (req.user?.role === 'ADMIN' && committee.adminId !== req.user.id) {
       sendForbidden(res, 'You can only update your own committees');
       return;
     }
@@ -160,9 +186,10 @@ export const updateCommittee = async (req: AuthRequest, res: Response): Promise<
         status: status ?? committee.status,
         monthlyAmount: monthlyAmount ? Number(monthlyAmount) : committee.monthlyAmount,
         durationMonths: durationMonths ? Number(durationMonths) : committee.durationMonths,
+        turnMethod: turnMethod ?? committee.turnMethod,
       },
       include: {
-        organizer: { select: { id: true, name: true, email: true } },
+        admin: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -181,13 +208,11 @@ export const deleteCommittee = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    if (req.user?.role === 'ORGANIZER' && committee.organizerId !== req.user.id) {
+    if (req.user?.role === 'ADMIN' && committee.adminId !== req.user.id) {
       sendForbidden(res);
       return;
     }
 
-    await prisma.round.deleteMany({ where: { committeeId: id } });
-    await prisma.committeeMember.deleteMany({ where: { committeeId: id } });
     await prisma.committee.delete({ where: { id } });
 
     sendSuccess(res, null, 'Committee deleted');
@@ -199,7 +224,7 @@ export const deleteCommittee = async (req: AuthRequest, res: Response): Promise<
 export const addMember = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id: committeeId } = req.params;
-    const { userId, turnNumber } = req.body;
+    const { userId, turnNumber, shareCount, shareAmount } = req.body;
 
     const committee = await prisma.committee.findUnique({
       where: { id: committeeId },
@@ -210,16 +235,15 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
 
-    if (
-      req.user!.role === 'ORGANIZER' &&
-      committee.organizerId !== req.user!.id
-    ) {
+    if (req.user!.role === 'ADMIN' && committee.adminId !== req.user!.id) {
       sendForbidden(res, 'You can only add members to your own committees');
       return;
     }
 
-    if (committee.members.length >= committee.totalMembers) {
-      sendBadRequest(res, 'Committee is full');
+    const slotsFilled = committee.members.reduce((s, m) => s + m.shareCount, 0);
+    const newShares = Number(shareCount) > 0 ? Number(shareCount) : 1;
+    if (slotsFilled + newShares > committee.totalSlots) {
+      sendBadRequest(res, 'Committee slots would exceed totalSlots');
       return;
     }
 
@@ -240,16 +264,25 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
 
+    const defaultShare =
+      shareAmount !== undefined && shareAmount !== null
+        ? Number(shareAmount)
+        : (committee.monthlyAmount / committee.totalSlots) * newShares;
+
     const member = await prisma.committeeMember.create({
       data: {
         userId,
         committeeId,
         turnNumber: Number(turnNumber),
+        shareCount: newShares,
+        shareAmount: defaultShare,
       },
       include: {
         user: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
+
+    await evaluateBadges(userId);
 
     sendCreated(res, member, 'Member added to committee');
   } catch (err) {
@@ -262,22 +295,20 @@ export const removeMember = async (req: AuthRequest, res: Response): Promise<voi
     const { id: committeeId, memberId } = req.params;
     const member = await prisma.committeeMember.findFirst({
       where: { id: memberId, committeeId },
-      include: { committee: { select: { organizerId: true } } },
+      include: { committee: { select: { adminId: true } } },
     });
     if (!member) {
       sendNotFound(res, 'Member not found on this committee');
       return;
     }
 
-    if (
-      req.user!.role === 'ORGANIZER' &&
-      member.committee.organizerId !== req.user!.id
-    ) {
+    if (req.user!.role === 'ADMIN' && member.committee.adminId !== req.user!.id) {
       sendForbidden(res, 'You can only remove members from your own committees');
       return;
     }
 
     await prisma.committeeMember.delete({ where: { id: memberId } });
+    await evaluateBadges(member.userId);
     sendSuccess(res, null, 'Member removed from committee');
   } catch (err) {
     sendError(res, 'Failed to remove member', 500, String(err));
@@ -287,8 +318,7 @@ export const removeMember = async (req: AuthRequest, res: Response): Promise<voi
 export const assignTurns = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id: committeeId } = req.params;
-    const { assignments } = req.body;
-    // assignments: [{ memberId, turnNumber }]
+    const { assignments } = req.body as { assignments?: { memberId: string; turnNumber: number }[] };
 
     const committee = await prisma.committee.findUnique({
       where: { id: committeeId },
@@ -299,31 +329,46 @@ export const assignTurns = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    if (committee.turnAssignment === 'RANDOM') {
-      // Auto-assign random turns
-      const members = committee.members;
-      const turns = Array.from({ length: members.length }, (_, i) => i + 1);
-      for (let i = turns.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [turns[i], turns[j]] = [turns[j], turns[i]];
-      }
+    if (committee.adminId !== req.user!.id) {
+      sendForbidden(res, 'Only the committee admin can assign turns');
+      return;
+    }
 
-      const updates = members.map((m, idx) =>
-        prisma.committeeMember.update({
-          where: { id: m.id },
-          data: { turnNumber: turns[idx] },
-        })
+    const hasAssignments = Array.isArray(assignments) && assignments.length > 0;
+    const memberIdSet = new Set(committee.members.map((m) => m.id));
+
+    if (hasAssignments) {
+      for (const a of assignments!) {
+        if (!memberIdSet.has(a.memberId)) {
+          sendBadRequest(res, 'assignments must use roster member ids for this committee');
+          return;
+        }
+      }
+      await Promise.all(
+        assignments!.map((a) =>
+          prisma.committeeMember.update({
+            where: { id: a.memberId },
+            data: { turnNumber: Number(a.turnNumber) },
+          }),
+        ),
       );
-      await Promise.all(updates);
-    } else if (assignments && Array.isArray(assignments)) {
-      // Manual/Bidding assignment
-      const updates = (assignments as { memberId: string; turnNumber: number }[]).map((a) =>
-        prisma.committeeMember.update({
-          where: { id: a.memberId },
-          data: { turnNumber: a.turnNumber },
-        })
+    } else if (committee.turnMethod === 'SPIN') {
+      const members = [...committee.members];
+      for (let i = members.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [members[i], members[j]] = [members[j], members[i]];
+      }
+      await Promise.all(
+        members.map((m, idx) =>
+          prisma.committeeMember.update({
+            where: { id: m.id },
+            data: { turnNumber: idx + 1 },
+          }),
+        ),
       );
-      await Promise.all(updates);
+    } else {
+      sendBadRequest(res, 'Provide assignments[] for MANUAL / BIDDING, or use SPIN for random order');
+      return;
     }
 
     const updatedMembers = await prisma.committeeMember.findMany({
@@ -335,5 +380,111 @@ export const assignTurns = async (req: AuthRequest, res: Response): Promise<void
     sendSuccess(res, updatedMembers, 'Turns assigned successfully');
   } catch (err) {
     sendError(res, 'Failed to assign turns', 500, String(err));
+  }
+};
+
+type BidInput = { userId: string; amount: number };
+
+export const startRound = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id: committeeId } = req.params;
+    const { dueDate, payoutUserId, bids } = req.body as {
+      dueDate?: string;
+      payoutUserId?: string;
+      bids?: BidInput[];
+    };
+
+    const committee = await prisma.committee.findUnique({
+      where: { id: committeeId },
+      include: { members: { orderBy: { turnNumber: 'asc' } }, rounds: true },
+    });
+    if (!committee) {
+      sendNotFound(res, 'Committee not found');
+      return;
+    }
+    if (committee.adminId !== req.user!.id) {
+      sendForbidden(res, 'Only the admin can start a round');
+      return;
+    }
+
+    const active = committee.rounds.find((r) => r.status === 'ACTIVE');
+    if (active) {
+      sendBadRequest(res, 'There is already an active round');
+      return;
+    }
+
+    const nextNum = committee.rounds.length + 1;
+    if (nextNum > committee.durationMonths) {
+      sendBadRequest(res, 'All rounds completed for this committee');
+      return;
+    }
+
+    const userIds = new Set(committee.members.map((m) => m.userId));
+    let resolvedPayout: string | null = null;
+
+    if (committee.turnMethod === 'MANUAL') {
+      if (!payoutUserId || !userIds.has(payoutUserId)) {
+        sendBadRequest(res, 'payoutUserId required and must be a member');
+        return;
+      }
+      resolvedPayout = payoutUserId;
+    } else if (committee.turnMethod === 'BIDDING') {
+      if (bids && Array.isArray(bids) && bids.length) {
+        let best: BidInput | null = null;
+        for (const b of bids) {
+          if (!userIds.has(b.userId)) {
+            sendBadRequest(res, 'Bid userId must be a member');
+            return;
+          }
+          if (!best || b.amount > best.amount) best = b;
+        }
+        resolvedPayout = best!.userId;
+      } else if (payoutUserId && userIds.has(payoutUserId)) {
+        resolvedPayout = payoutUserId;
+      } else {
+        sendBadRequest(res, 'Provide bids[] or payoutUserId');
+        return;
+      }
+    } else {
+      resolvedPayout = pickRandomUserId(committee.members);
+    }
+
+    if (!resolvedPayout) {
+      sendBadRequest(res, 'Could not determine payout recipient');
+      return;
+    }
+
+    const due = dueDate ? new Date(dueDate) : null;
+
+    const round = await prisma.round.create({
+      data: {
+        committeeId,
+        roundNumber: nextNum,
+        payoutUserId: resolvedPayout,
+        status: 'ACTIVE',
+        dueDate: due,
+      },
+    });
+
+    const paymentRows = committee.members.map((m) => ({
+      roundId: round.id,
+      memberId: m.id,
+      userId: m.userId,
+      amount: m.shareAmount,
+      status: 'PENDING' as const,
+      dueDate: due,
+    }));
+    await prisma.payment.createMany({ data: paymentRows });
+
+    const full = await prisma.round.findUnique({
+      where: { id: round.id },
+      include: {
+        payments: { include: { user: { select: { id: true, name: true } } } },
+      },
+    });
+
+    sendCreated(res, full, 'Round started');
+  } catch (err) {
+    sendError(res, 'Failed to start round', 500, String(err));
   }
 };

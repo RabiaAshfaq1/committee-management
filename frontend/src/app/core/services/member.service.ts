@@ -15,6 +15,7 @@ export class MemberService {
   }
 
   getById(id: string): Observable<any> { return this.http.get<any>(`${this.API}/${id}`); }
+  getTrustProfile(id: string): Observable<any> { return this.http.get<any>(`${this.API}/${id}/profile`); }
   getHistory(id: string): Observable<any> { return this.http.get<any>(`${this.API}/${id}/history`); }
   create(data: any): Observable<any> { return this.http.post<any>(this.API, data); }
   update(id: string, data: any): Observable<any> { return this.http.put<any>(`${this.API}/${id}`, data); }
