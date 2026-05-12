@@ -10,12 +10,19 @@ import {
   sendNotFound,
 } from '../utils/response.utils';
 import { evaluateBadges } from '../utils/badge.engine';
+import { isPlatformAdmin } from '../utils/committee.access';
 
 export const createFeedback = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { toUserId, committeeId, rating, comment } = req.body;
-    if (!toUserId || !committeeId || rating === undefined) {
-      sendBadRequest(res, 'toUserId, committeeId, rating required');
+    const { toUserId, committeeId, roundId, rating, comment } = req.body as {
+      toUserId?: string;
+      committeeId?: string;
+      roundId?: string;
+      rating?: unknown;
+      comment?: string | null;
+    };
+    if (!toUserId || !committeeId || !roundId || rating === undefined) {
+      sendBadRequest(res, 'toUserId, committeeId, roundId, and rating are required');
       return;
     }
     const r = Number(rating);
@@ -24,21 +31,30 @@ export const createFeedback = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    if (req.user!.role !== 'ADMIN') {
-      sendForbidden(res, 'Only admins can leave member feedback');
-      return;
-    }
-
     const committee = await prisma.committee.findUnique({
       where: { id: committeeId },
-      select: { adminId: true },
+      select: { id: true },
     });
     if (!committee) {
       sendNotFound(res, 'Committee not found');
       return;
     }
-    if (committee.adminId !== req.user!.id) {
-      sendForbidden(res, 'You can only leave feedback for committees you manage');
+
+    const round = await prisma.round.findFirst({
+      where: { id: roundId, committeeId, status: 'COMPLETED' },
+      select: { id: true },
+    });
+    if (!round) {
+      sendBadRequest(res, 'Feedback is only allowed after the selected round is completed in this committee');
+      return;
+    }
+
+    const actorIsModerator = isPlatformAdmin(req.user!.role);
+    const actorMembership = await prisma.committeeMember.findFirst({
+      where: { committeeId, userId: req.user!.id },
+    });
+    if (!actorIsModerator && !actorMembership) {
+      sendForbidden(res, 'Join this committee or sign in as a moderator to leave feedback');
       return;
     }
 
@@ -55,11 +71,20 @@ export const createFeedback = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    const dup = await prisma.feedback.findFirst({
+      where: { fromUserId: req.user!.id, toUserId, roundId },
+    });
+    if (dup) {
+      sendBadRequest(res, 'You have already left feedback for this member for this round');
+      return;
+    }
+
     const fb = await prisma.feedback.create({
       data: {
         fromUserId: req.user!.id,
         toUserId,
         committeeId,
+        roundId,
         rating: r,
         comment: comment || null,
       },
@@ -74,15 +99,12 @@ export const createFeedback = async (req: AuthRequest, res: Response): Promise<v
 export const getFeedbackForUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
-    if (req.user!.role !== 'ADMIN' && req.user!.id !== userId) {
-      sendForbidden(res, 'Access denied');
-      return;
-    }
     const list = await prisma.feedback.findMany({
       where: { toUserId: userId },
       include: {
         fromUser: { select: { id: true, name: true, email: true } },
         committee: { select: { id: true, name: true } },
+        round: { select: { id: true, roundNumber: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,

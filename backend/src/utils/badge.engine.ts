@@ -92,8 +92,9 @@ export async function evaluateBadges(userId: string): Promise<void> {
   if (ids.sargaram && activeCommittees >= 3) await ensureUserBadge(userId, ids.sargaram);
   if (ids.amanatdaar && streak >= 5) await ensureUserBadge(userId, ids.amanatdaar);
   if (ids.bharosemand) {
-    if (totalPayments > 0 && paymentRate >= 1) await ensureUserBadge(userId, ids.bharosemand);
-    else if (totalPayments > 0 && paymentRate < 1) await removeUserBadge(userId, ids.bharosemand);
+    if (totalPayments >= 10 && paymentRate >= 1) await ensureUserBadge(userId, ids.bharosemand);
+    else if (totalPayments > 0 && (paymentRate < 1 || totalPayments < 10))
+      await removeUserBadge(userId, ids.bharosemand);
   }
 
   if (ids.tawajjuDarkaar) {

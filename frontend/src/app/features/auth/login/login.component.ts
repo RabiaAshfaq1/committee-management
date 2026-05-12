@@ -109,8 +109,8 @@ export class LoginComponent {
     }
     this.loading.set(true);
     this.error.set('');
-    const email = this.form.value.email!.trim();
-    const password = this.form.value.password!;
+    const email = this.form.value.email!.trim().toLowerCase();
+    const password = this.form.value.password!.trim();
     this.auth
       .login(email, password)
       .pipe(finalize(() => this.loading.set(false)))
@@ -141,6 +141,11 @@ export class LoginComponent {
     }
     if (s === 404) {
       return 'API not found (404). Fix backend deploy or set NG_APP_API_URL to https://YOUR-BACKEND.vercel.app/api';
+    }
+    if (s === 401) {
+      const m401 = err?.error?.message;
+      if (typeof m401 === 'string' && m401.trim()) return m401;
+      return 'Invalid credentials';
     }
     if (s === 403) {
       const m = err?.error?.message;

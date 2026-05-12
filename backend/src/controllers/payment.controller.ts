@@ -9,6 +9,7 @@ import {
   sendForbidden,
 } from '../utils/response.utils';
 import { evaluateBadges } from '../utils/badge.engine';
+import { canManageCommittee } from '../utils/committee.access';
 
 export const submitTransaction = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -31,8 +32,8 @@ export const submitTransaction = async (req: AuthRequest, res: Response): Promis
     }
 
     const isOwner = payment.userId === req.user!.id;
-    const isAdmin = payment.round.committee.adminId === req.user!.id;
-    if (!isOwner && !isAdmin) {
+    const canManage = canManageCommittee(req.user!.id, req.user!.role, payment.round.committee.adminId);
+    if (!isOwner && !canManage) {
       sendForbidden(res, 'Not allowed');
       return;
     }
@@ -61,8 +62,8 @@ export const confirmPayment = async (req: AuthRequest, res: Response): Promise<v
       sendNotFound(res, 'Payment not found');
       return;
     }
-    if (payment.round.committee.adminId !== req.user!.id) {
-      sendForbidden(res, 'Only admin can confirm');
+    if (!canManageCommittee(req.user!.id, req.user!.role, payment.round.committee.adminId)) {
+      sendForbidden(res, 'Only the organizer or a platform moderator can confirm payments');
       return;
     }
     if (!payment.transactionId) {
@@ -75,6 +76,15 @@ export const confirmPayment = async (req: AuthRequest, res: Response): Promise<v
       data: { status: 'PAID', paidAt: new Date() },
     });
     await evaluateBadges(payment.userId);
+
+    const roundPayments = await prisma.payment.findMany({ where: { roundId: payment.roundId } });
+    if (roundPayments.length > 0 && roundPayments.every((p) => p.status === 'PAID')) {
+      await prisma.round.update({ where: { id: payment.roundId }, data: { status: 'COMPLETED' } });
+      for (const p of roundPayments) {
+        await evaluateBadges(p.userId);
+      }
+    }
+
     sendSuccess(res, updated, 'Payment confirmed');
   } catch (err) {
     sendError(res, 'Failed to confirm', 500, String(err));
@@ -101,8 +111,8 @@ export const getPaymentsByRound = async (req: AuthRequest, res: Response): Promi
     }
 
     const isMember = round.committee.members.some((m) => m.userId === req.user!.id);
-    const isAdmin = round.committee.adminId === req.user!.id;
-    if (!isMember && !isAdmin) {
+    const canManage = canManageCommittee(req.user!.id, req.user!.role, round.committee.adminId);
+    if (!isMember && !canManage) {
       sendForbidden(res, 'Access denied');
       return;
     }

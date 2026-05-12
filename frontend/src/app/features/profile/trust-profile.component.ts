@@ -6,7 +6,7 @@ import { Subscription } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MemberService } from '../../core/services/member.service';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { CommitteeService } from '../../core/services/committee.service';
+import { RoundService } from '../../core/services/round.service';
 import { AuthService } from '../../core/services/auth.service';
 
 const BADGE_ICON: Record<string, string> = {
@@ -185,14 +185,14 @@ const BADGE_ICON: Record<string, string> = {
             </div>
           } @else {
             <div class="grid md:grid-cols-2 gap-4">
-              @for (f of payload()!.feedbackReceived; track f.id) {
+              @for (f of payload()!.feedbackReceived; track f.createdAt + f.fromUserName) {
                 <div class="glass-card p-5 rounded-2xl border border-slate-100">
                   <p class="text-amber-500 text-sm mb-1">{{ stars(f.rating) }}</p>
                   <p class="text-slate-700 text-sm">{{ f.comment || '—' }}</p>
                   <p class="text-xs text-slate-400 mt-3">
-                    From <span class="font-medium text-slate-600">{{ f.fromUser?.name }}</span> · {{ f.createdAt | date: 'mediumDate' }}
-                    @if (f.committee?.name) {
-                      <span> · {{ f.committee.name }}</span>
+                    From <span class="font-medium text-slate-600">{{ f.fromUserName }}</span> · {{ f.createdAt | date: 'mediumDate' }}
+                    @if (f.committeeName) {
+                      <span> · {{ f.committeeName }}</span>
                     }
                   </p>
                 </div>
@@ -210,9 +210,21 @@ const BADGE_ICON: Record<string, string> = {
             <div class="space-y-3 text-sm">
               <div>
                 <label class="block text-slate-600 mb-1">Committee</label>
-                <select [(ngModel)]="fbCommitteeId" class="w-full rounded-xl border border-slate-200 px-3 py-2">
-                  @for (c of adminCommittees(); track c.id) {
+                <select
+                  [(ngModel)]="fbCommitteeId"
+                  (ngModelChange)="onFbCommitteeChange($event)"
+                  class="w-full rounded-xl border border-slate-200 px-3 py-2"
+                >
+                  @for (c of fbCommitteeOptions(); track c.id) {
                     <option [value]="c.id">{{ c.name }}</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <label class="block text-slate-600 mb-1">Completed round</label>
+                <select [(ngModel)]="fbRoundId" class="w-full rounded-xl border border-slate-200 px-3 py-2">
+                  @for (r of fbRounds(); track r.id) {
+                    <option [value]="r.id">Round {{ r.roundNumber }}</option>
                   }
                 </select>
               </div>
@@ -311,13 +323,13 @@ export class TrustProfileComponent implements OnInit, OnDestroy {
 
   isSelf = computed(() => this.auth.currentUser?.id === this.resolvedUserId());
   showLeaveFeedback = computed(() => {
-    if (!this.auth.isAdmin || this.isSelf()) return false;
+    if (this.isSelf() || !this.auth.isLoggedIn) return false;
     return true;
   });
 
   mergedBadges = computed(() => {
     const p = this.payload();
-    const earned = new Map((p?.badges || []).map((ub: any) => [ub.badge?.name, ub]));
+    const earned = new Map((p?.badges || []).map((ub: any) => [ub.name, ub]));
     const all = p?.allBadges || [];
     return all.map((b: any) => ({
       name: b.name,
@@ -329,10 +341,12 @@ export class TrustProfileComponent implements OnInit, OnDestroy {
 
   showFbModal = signal(false);
   fbCommitteeId = '';
+  fbRoundId = '';
   fbRating = 5;
   fbComment = '';
   fbSaving = signal(false);
-  adminCommittees = signal<any[]>([]);
+  fbCommitteeOptions = signal<{ id: string; name: string }[]>([]);
+  fbRounds = signal<{ id: string; roundNumber: number }[]>([]);
 
   showEditModal = signal(false);
   editName = '';
@@ -344,7 +358,7 @@ export class TrustProfileComponent implements OnInit, OnDestroy {
     private router: Router,
     private members: MemberService,
     private feedback: FeedbackService,
-    private committees: CommitteeService,
+    private rounds: RoundService,
     public auth: AuthService,
     private toast: ToastrService,
   ) {}
@@ -425,17 +439,38 @@ export class TrustProfileComponent implements OnInit, OnDestroy {
   }
 
   openFeedbackModal(): void {
-    if (!this.auth.isAdmin) return;
-    this.committees.getAll({ page: 1, limit: 100 }).subscribe({
+    const hist = this.payload()?.committeeHistory || [];
+    const opts = hist.map((h: any) => ({ id: h.committeeId, name: h.name }));
+    if (!opts.length) {
+      this.toast.warning('No committee history on this profile yet — feedback links to a completed round.');
+      return;
+    }
+    this.fbCommitteeOptions.set(opts);
+    this.fbCommitteeId = opts[0]?.id || '';
+    this.fbRoundId = '';
+    this.fbRounds.set([]);
+    this.fbRating = 5;
+    this.fbComment = '';
+    if (this.fbCommitteeId) this.onFbCommitteeChange(this.fbCommitteeId);
+    this.showFbModal.set(true);
+  }
+
+  onFbCommitteeChange(cid: string): void {
+    if (!cid) {
+      this.fbRounds.set([]);
+      this.fbRoundId = '';
+      return;
+    }
+    this.rounds.getByCommittee(cid).subscribe({
       next: (res) => {
-        const rows = (res.data || []).filter((c: any) => c.adminId === this.auth.currentUser?.id);
-        this.adminCommittees.set(rows);
-        this.fbCommitteeId = rows[0]?.id || '';
-        this.fbRating = 5;
-        this.fbComment = '';
-        this.showFbModal.set(true);
+        const list = (res.data || [])
+          .filter((r: any) => r.status === 'COMPLETED')
+          .sort((a: any, b: any) => b.roundNumber - a.roundNumber)
+          .map((r: any) => ({ id: r.id, roundNumber: r.roundNumber }));
+        this.fbRounds.set(list);
+        this.fbRoundId = list[0]?.id || '';
       },
-      error: () => this.toast.error('Could not load committees'),
+      error: () => this.toast.error('Could not load rounds for this committee'),
     });
   }
 
@@ -446,8 +481,9 @@ export class TrustProfileComponent implements OnInit, OnDestroy {
   submitFeedback(): void {
     const uid = this.resolvedUserId();
     const cid = this.fbCommitteeId;
-    if (!cid || !uid) {
-      this.toast.warning('Pick a committee');
+    const rid = this.fbRoundId;
+    if (!cid || !uid || !rid) {
+      this.toast.warning('Pick a committee and a completed round');
       return;
     }
     this.fbSaving.set(true);
@@ -455,6 +491,7 @@ export class TrustProfileComponent implements OnInit, OnDestroy {
       .create({
         toUserId: uid,
         committeeId: cid,
+        roundId: rid,
         rating: this.fbRating,
         comment: this.fbComment.trim() || null,
       })

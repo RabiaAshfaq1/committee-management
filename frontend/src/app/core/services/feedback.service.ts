@@ -9,7 +9,13 @@ export class FeedbackService {
 
   constructor(private http: HttpClient) {}
 
-  create(body: { toUserId: string; committeeId: string; rating: number; comment?: string | null }): Observable<unknown> {
+  create(body: {
+    toUserId: string;
+    committeeId: string;
+    roundId: string;
+    rating: number;
+    comment?: string | null;
+  }): Observable<unknown> {
     return this.http.post(this.base, body);
   }
 

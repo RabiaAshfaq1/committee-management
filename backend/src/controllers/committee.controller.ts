@@ -10,11 +10,7 @@ import {
   sendForbidden,
 } from '../utils/response.utils';
 import { evaluateBadges } from '../utils/badge.engine';
-
-function pickRandomUserId(members: { userId: string }[]): string | null {
-  if (!members.length) return null;
-  return members[Math.floor(Math.random() * members.length)].userId;
-}
+import { canManageCommittee } from '../utils/committee.access';
 
 export const createCommittee = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -66,12 +62,6 @@ export const getAllCommittees = async (req: AuthRequest, res: Response): Promise
     const where: Record<string, unknown> = {};
     if (status) where['status'] = status;
     if (search) where['name'] = { contains: search, mode: 'insensitive' };
-
-    if (req.user?.role === 'MEMBER') {
-      where['members'] = { some: { userId: req.user.id } };
-    } else if (req.user?.role === 'ADMIN') {
-      where['adminId'] = req.user.id;
-    }
 
     const [rows, total] = await Promise.all([
       prisma.committee.findMany({
@@ -144,18 +134,6 @@ export const getCommitteeById = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    const user = req.user;
-    if (user?.role === 'MEMBER') {
-      const allowed = committee.members.some((m) => m.userId === user.id);
-      if (!allowed) {
-        sendForbidden(res, 'You are not part of this committee');
-        return;
-      }
-    } else if (user?.role === 'ADMIN' && committee.adminId !== user.id) {
-      sendForbidden(res, 'You can only open committees you manage');
-      return;
-    }
-
     sendSuccess(res, committee, 'Committee fetched');
   } catch (err) {
     sendError(res, 'Failed to fetch committee', 500, String(err));
@@ -173,8 +151,8 @@ export const updateCommittee = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    if (req.user?.role === 'ADMIN' && committee.adminId !== req.user.id) {
-      sendForbidden(res, 'You can only update your own committees');
+    if (!canManageCommittee(req.user!.id, req.user!.role, committee.adminId)) {
+      sendForbidden(res, 'Only the committee organizer or a platform moderator can update');
       return;
     }
 
@@ -208,8 +186,8 @@ export const deleteCommittee = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    if (req.user?.role === 'ADMIN' && committee.adminId !== req.user.id) {
-      sendForbidden(res);
+    if (!canManageCommittee(req.user!.id, req.user!.role, committee.adminId)) {
+      sendForbidden(res, 'Only the organizer or a platform moderator can delete this committee');
       return;
     }
 
@@ -235,8 +213,8 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
 
-    if (req.user!.role === 'ADMIN' && committee.adminId !== req.user!.id) {
-      sendForbidden(res, 'You can only add members to your own committees');
+    if (!canManageCommittee(req.user!.id, req.user!.role, committee.adminId)) {
+      sendForbidden(res, 'Only the organizer or a platform moderator can add members');
       return;
     }
 
@@ -302,8 +280,17 @@ export const removeMember = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (req.user!.role === 'ADMIN' && member.committee.adminId !== req.user!.id) {
-      sendForbidden(res, 'You can only remove members from your own committees');
+    if (!canManageCommittee(req.user!.id, req.user!.role, member.committee.adminId)) {
+      sendForbidden(res, 'Only the organizer or a platform moderator can remove members');
+      return;
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: member.userId },
+      select: { role: true },
+    });
+    if (targetUser?.role === 'ADMIN') {
+      sendForbidden(res, 'Platform moderators cannot be removed from committees');
       return;
     }
 
@@ -329,8 +316,8 @@ export const assignTurns = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    if (committee.adminId !== req.user!.id) {
-      sendForbidden(res, 'Only the committee admin can assign turns');
+    if (!canManageCommittee(req.user!.id, req.user!.role, committee.adminId)) {
+      sendForbidden(res, 'Only the organizer or a platform moderator can assign turns');
       return;
     }
 
@@ -402,8 +389,8 @@ export const startRound = async (req: AuthRequest, res: Response): Promise<void>
       sendNotFound(res, 'Committee not found');
       return;
     }
-    if (committee.adminId !== req.user!.id) {
-      sendForbidden(res, 'Only the admin can start a round');
+    if (!canManageCommittee(req.user!.id, req.user!.role, committee.adminId)) {
+      sendForbidden(res, 'Only the organizer or a platform moderator can start a round');
       return;
     }
 
@@ -420,38 +407,19 @@ export const startRound = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     const userIds = new Set(committee.members.map((m) => m.userId));
-    let resolvedPayout: string | null = null;
+    let resolvedPayout: string | null =
+      payoutUserId && userIds.has(payoutUserId) ? payoutUserId : null;
 
-    if (committee.turnMethod === 'MANUAL') {
-      if (!payoutUserId || !userIds.has(payoutUserId)) {
-        sendBadRequest(res, 'payoutUserId required and must be a member');
-        return;
-      }
-      resolvedPayout = payoutUserId;
-    } else if (committee.turnMethod === 'BIDDING') {
-      if (bids && Array.isArray(bids) && bids.length) {
-        let best: BidInput | null = null;
-        for (const b of bids) {
-          if (!userIds.has(b.userId)) {
-            sendBadRequest(res, 'Bid userId must be a member');
-            return;
-          }
-          if (!best || b.amount > best.amount) best = b;
+    if (committee.turnMethod === 'BIDDING' && bids && Array.isArray(bids) && bids.length) {
+      let best: BidInput | null = null;
+      for (const b of bids) {
+        if (!userIds.has(b.userId)) {
+          sendBadRequest(res, 'Bid userId must be a member');
+          return;
         }
-        resolvedPayout = best!.userId;
-      } else if (payoutUserId && userIds.has(payoutUserId)) {
-        resolvedPayout = payoutUserId;
-      } else {
-        sendBadRequest(res, 'Provide bids[] or payoutUserId');
-        return;
+        if (!best || b.amount > best.amount) best = b;
       }
-    } else {
-      resolvedPayout = pickRandomUserId(committee.members);
-    }
-
-    if (!resolvedPayout) {
-      sendBadRequest(res, 'Could not determine payout recipient');
-      return;
+      resolvedPayout = best!.userId;
     }
 
     const due = dueDate ? new Date(dueDate) : null;

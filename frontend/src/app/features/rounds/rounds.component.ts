@@ -49,7 +49,7 @@ import { ToastrService } from 'ngx-toastr';
       } @else if (loading()) {
         <div class="glass-card h-48 skeleton"></div>
       } @else {
-        @if (auth.isAdmin && meta()?.membersReady && !hasActive()) {
+        @if (canManageSelectedCommittee() && meta()?.membersReady && !hasActive()) {
           <div class="flex justify-center">
             <button type="button" (click)="openStart()" class="btn-primary text-sm px-6 py-2.5 rounded-xl">+ New round</button>
           </div>
@@ -96,7 +96,7 @@ import { ToastrService } from 'ngx-toastr';
                            class="flex-1 min-w-40 px-3 py-2 rounded-lg border text-sm font-mono"/>
                     <button type="button" class="btn-primary text-xs py-2 px-3" (click)="saveTx(r)" [disabled]="txBusy()===r.id">Save</button>
                   }
-                  @if (auth.isAdmin && isMyCommittee()) {
+                  @if (canManageSelectedCommittee()) {
                     <button type="button" class="btn-secondary text-xs py-2 px-3" (click)="complete(r)" [disabled]="busyId()===r.id">Complete round</button>
                   }
                 </div>
@@ -109,7 +109,7 @@ import { ToastrService } from 'ngx-toastr';
         </div>
       }
 
-      @if (auth.isAdmin && isMyCommittee() && selectedId() && hasCompletedRound()) {
+      @if (canManageSelectedCommittee() && selectedId() && hasCompletedRound()) {
         <div class="glass-card p-5 rounded-2xl border border-indigo-100 mt-4">
           <h3 class="text-sm font-bold text-slate-800 mb-1">Post-round feedback</h3>
           <p class="text-xs text-slate-500 mb-3">After a round completes, leave a quick rating for a member in this committee.</p>
@@ -227,12 +227,23 @@ export class RoundsComponent implements OnInit {
     return c?.adminId === this.auth.currentUser?.id;
   }
 
+  canManageSelectedCommittee(): boolean {
+    return this.isMyCommittee() || this.auth.isAdmin;
+  }
+
   isPayoutWinner(r: any): boolean {
     return !!r?.payoutUserId && r.payoutUserId === this.auth.currentUser?.id;
   }
 
   hasCompletedRound(): boolean {
     return !!this.rounds().some((r) => r.status === 'COMPLETED');
+  }
+
+  lastCompletedRoundId(): string | null {
+    const completed = this.rounds()
+      .filter((r) => r.status === 'COMPLETED')
+      .sort((a, b) => b.roundNumber - a.roundNumber);
+    return completed[0]?.id ?? null;
   }
 
   rosterMembers(): any[] {
@@ -242,8 +253,9 @@ export class RoundsComponent implements OnInit {
 
   submitRoundFeedback(): void {
     const cid = this.selectedId();
-    if (!cid || !this.fbToUserId) {
-      this.toast.warning('Choose a member');
+    const roundId = this.lastCompletedRoundId();
+    if (!cid || !this.fbToUserId || !roundId) {
+      this.toast.warning('Choose a member and ensure a round has completed');
       return;
     }
     this.fbBusy.set(true);
@@ -251,6 +263,7 @@ export class RoundsComponent implements OnInit {
       .create({
         toUserId: this.fbToUserId,
         committeeId: cid,
+        roundId,
         rating: this.fbRating,
         comment: this.fbComment.trim() || null,
       })
@@ -326,8 +339,8 @@ export class RoundsComponent implements OnInit {
 
   canSubmitRecipientTx(r: any): boolean {
     if (r.status !== 'ACTIVE') return false;
-    if (this.auth.isAdmin && this.isMyCommittee()) return true;
-    return r.payoutUserId === this.auth.currentUser?.id;
+    if (r.payoutUserId === this.auth.currentUser?.id) return true;
+    return this.canManageSelectedCommittee();
   }
 
   saveTx(r: any) {
@@ -422,7 +435,7 @@ export class RoundsComponent implements OnInit {
 
     if (tm === 'SPIN') this.spinning.set(true);
     this.starting.set(true);
-    this.committeeSvc.startRound(cid, body).subscribe({
+    this.roundSvc.startRound(cid, body).subscribe({
       next: () => {
         this.spinning.set(false);
         this.starting.set(false);

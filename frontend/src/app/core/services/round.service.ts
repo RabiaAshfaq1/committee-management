@@ -9,7 +9,15 @@ export class RoundService {
   constructor(private http: HttpClient) {}
 
   getByCommittee(committeeId: string): Observable<any> {
-    return this.http.get<any>(`${this.API}/${committeeId}`);
+    return this.http.get<any>(`${this.API}/committee/${committeeId}`);
+  }
+
+  startRound(committeeId: string, body: Record<string, unknown> = {}): Observable<any> {
+    return this.http.post<any>(`${this.API}/start`, { committeeId, ...body });
+  }
+
+  assignTurn(roundId: string, method: string, memberId?: string): Observable<any> {
+    return this.http.post<any>(`${this.API}/${roundId}/assign-turn`, { method, memberId });
   }
 
   complete(id: string): Observable<any> {

@@ -118,7 +118,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const raw = req.body as { email?: unknown; password?: unknown };
+    const email =
+      typeof raw.email === 'string' ? raw.email.trim().toLowerCase() : '';
+    const password = typeof raw.password === 'string' ? raw.password.trim() : '';
     if (!email || !password) {
       sendBadRequest(res, 'Email and password are required');
       return;

@@ -11,6 +11,7 @@ import dashboardRoutes from './routes/dashboard.routes';
 import paymentRoutes from './routes/payment.routes';
 import badgeRoutes from './routes/badge.routes';
 import feedbackRoutes from './routes/feedback.routes';
+import adminRoutes from './routes/admin.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -45,6 +46,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((_req, res) => {

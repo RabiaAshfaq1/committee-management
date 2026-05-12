@@ -13,9 +13,8 @@ import bcrypt from 'bcryptjs';
 import { persistTrustScore } from '../utils/trust.score';
 import { evaluateBadges } from '../utils/badge.engine';
 
-function canViewMemberTrust(req: AuthRequest, memberId: string): boolean {
-  if (req.user!.role === 'ADMIN') return true;
-  return req.user!.role === 'MEMBER' && req.user!.id === memberId;
+function canViewMemberTrust(_req: AuthRequest, _memberId: string): boolean {
+  return true;
 }
 
 export const getAllMembers = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -24,7 +23,7 @@ export const getAllMembers = async (req: AuthRequest, res: Response): Promise<vo
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
-    const where: Record<string, unknown> = { role: 'MEMBER' };
+    const where: Record<string, unknown> = {};
     if (status === 'active') where['isActive'] = true;
     if (status === 'inactive') where['isActive'] = false;
     if (search) {
@@ -98,10 +97,6 @@ export const getMemberById = async (req: AuthRequest, res: Response): Promise<vo
       sendNotFound(res, 'Member not found');
       return;
     }
-    if (req.user?.role === 'MEMBER' && req.user.id !== id) {
-      sendForbidden(res, 'You can only view your own profile');
-      return;
-    }
     sendSuccess(res, member);
   } catch (err) {
     sendError(res, 'Failed to fetch member', 500, String(err));
@@ -130,8 +125,8 @@ export const getMemberProfile = async (req: AuthRequest, res: Response): Promise
         createdAt: true,
       },
     });
-    if (!user || user.role !== 'MEMBER') {
-      sendNotFound(res, 'Member trust profile not found');
+    if (!user) {
+      sendNotFound(res, 'User not found');
       return;
     }
 
@@ -185,6 +180,7 @@ export const getMemberProfile = async (req: AuthRequest, res: Response): Promise
         include: {
           fromUser: { select: { id: true, name: true, email: true } },
           committee: { select: { id: true, name: true } },
+          round: { select: { id: true, roundNumber: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 100,
@@ -223,6 +219,7 @@ export const getMemberProfile = async (req: AuthRequest, res: Response): Promise
           paidCount: paidCnt,
           totalPayments: totalPay,
           paymentRatePct: ratePct,
+          turnNumber: tm.turnNumber,
         };
       }),
     );
@@ -230,11 +227,25 @@ export const getMemberProfile = async (req: AuthRequest, res: Response): Promise
     sendSuccess(
       res,
       {
-        user,
+        user: { ...user, trustScore: trust.score },
         trustScore: trust,
-        badges: userBadges,
+        badges: userBadges.map((ub) => ({
+          id: ub.badge.id,
+          name: ub.badge.name,
+          icon: ub.badge.icon,
+          color: ub.badge.color,
+          description: ub.badge.description,
+          earnedAt: ub.earnedAt,
+        })),
         allBadges,
-        feedbackReceived,
+        feedbackReceived: feedbackReceived.map((f) => ({
+          rating: f.rating,
+          comment: f.comment,
+          fromUserName: f.fromUser.name,
+          createdAt: f.createdAt,
+          committeeName: f.committee.name,
+          roundNumber: f.round?.roundNumber ?? null,
+        })),
         stats: {
           totalCommitteesJoined: totalJoined,
           committeesCompleted: completedCount,
@@ -263,8 +274,8 @@ export const getMemberHistory = async (req: AuthRequest, res: Response): Promise
       where: { id },
       select: { id: true, name: true, role: true },
     });
-    if (!user || user.role !== 'MEMBER') {
-      sendNotFound(res, 'Member not found');
+    if (!user) {
+      sendNotFound(res, 'User not found');
       return;
     }
 
@@ -340,8 +351,8 @@ export const getMemberTrustScore = async (req: AuthRequest, res: Response): Prom
       where: { id },
       select: { role: true },
     });
-    if (!user || user.role !== 'MEMBER') {
-      sendNotFound(res, 'Member not found');
+    if (!user) {
+      sendNotFound(res, 'User not found');
       return;
     }
     const trust = await persistTrustScore(id);

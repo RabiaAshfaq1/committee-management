@@ -24,22 +24,26 @@ $light-theme: mat.define-light-theme((
 *, *::before, *::after { box-sizing: border-box; }
 
 :root {
-  --primary: #6366F1;
-  --primary-dark: #4F46E5;
-  --secondary: #8B5CF6;
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --sidebar-bg: #1E1B4B;
-  --bg: #F8FAFC;
-  --card-bg: #FFFFFF;
-  --text: #1E293B;
-  --text-muted: #64748B;
-  --border: #E2E8F0;
-  --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
-  --gradient-cta: linear-gradient(135deg, #5b5ef0 0%, #6d63e8 48%, #8b7fd9 100%);
-  --gradient-cta-hover: linear-gradient(135deg, #5257ee 0%, #655adb 50%, #8274d4 100%);
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --secondary: #8b5cf6;
+  --brand-navy: #1e3a5f;
+  --brand-emerald: #10b981;
+  --brand-gold: #f59e0b;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --sidebar-bg: #1e3a5f;
+  --sidebar-text: #ffffff;
+  --bg: #f8fafc;
+  --card-bg: #ffffff;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --gradient-cta: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  --gradient-cta-hover: linear-gradient(135deg, var(--primary-dark) 0%, #7c3aed 100%);
 }
 
 .dark {
@@ -119,11 +123,27 @@ html, body {
 .badge {
   @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
 }
-.badge-success { @apply badge bg-emerald-100 text-emerald-700; }
-.badge-warning { @apply badge bg-amber-100 text-amber-700; }
-.badge-danger  { @apply badge bg-red-100 text-red-700; }
-.badge-info    { @apply badge bg-indigo-100 text-indigo-700; }
-.badge-muted   { @apply badge bg-slate-100 text-slate-600; }
+.badge-success {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  background: #d1fae5;
+  color: #065f46;
+}
+.badge-warning {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  background: #fef3c7;
+  color: #92400e;
+}
+.badge-danger {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700;
+}
+.badge-info {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  background: #d1fae5;
+  color: #065f46;
+}
+.badge-muted {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600;
+}
 
 /* Table */
 .data-table {
@@ -181,4 +201,383 @@ html, body {
   border-radius: 12px !important;
   box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
   font-family: 'Inter', sans-serif !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Amanat unified theme — inner app (scoped hosts; landing unchanged)         */
+/* -------------------------------------------------------------------------- */
+
+app-admin-layout main {
+  background-color: var(--bg) !important;
+}
+
+app-admin-layout main .glass-card {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* —— Sidebar (navy shell, emerald active) —— */
+app-admin-layout aside {
+  background: var(--sidebar-bg) !important;
+  color: var(--sidebar-text);
+}
+
+app-admin-layout aside .border-indigo-800 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+app-admin-layout aside .text-indigo-300 {
+  color: var(--brand-emerald) !important;
+}
+
+app-admin-layout aside nav a.text-indigo-200 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+app-admin-layout aside nav a.bg-indigo-600 {
+  background-color: var(--brand-emerald) !important;
+  color: #fff !important;
+}
+
+app-admin-layout aside nav a:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+app-admin-layout aside .text-indigo-400 {
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+
+app-admin-layout aside button.text-indigo-400:hover {
+  color: #fecaca !important;
+}
+
+/* —— Login —— */
+app-login .font-playfair {
+  color: var(--brand-navy) !important;
+}
+
+app-login .text-center > p.text-slate-500.text-sm {
+  color: var(--brand-emerald) !important;
+}
+
+app-login .max-w-md.rounded-2xl {
+  background: #fff !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.1) !important;
+}
+
+app-login input.rounded-xl {
+  border-color: var(--border) !important;
+}
+
+app-login input.rounded-xl:focus {
+  border-color: var(--primary) !important;
+  --tw-ring-color: rgba(99, 102, 241, 0.35) !important;
+}
+
+app-login a.text-indigo-600 {
+  color: var(--primary) !important;
+}
+
+/* —— Register —— */
+app-register .font-playfair {
+  color: var(--brand-navy) !important;
+}
+
+app-register .text-center > p.text-slate-500.text-sm {
+  color: var(--brand-emerald) !important;
+}
+
+app-register .max-w-lg.rounded-2xl {
+  background: #fff !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.1) !important;
+}
+
+app-register input.rounded-xl {
+  border-color: var(--border) !important;
+}
+
+app-register input.rounded-xl:focus {
+  border-color: var(--primary) !important;
+  --tw-ring-color: rgba(99, 102, 241, 0.35) !important;
+}
+
+app-register .flex.rounded-xl.border button.text-white {
+  background: var(--brand-navy) !important;
+  color: #fff !important;
+}
+
+app-register .flex.rounded-xl.border button.text-slate-600 {
+  background: #fff !important;
+  color: var(--brand-navy) !important;
+  border-color: transparent !important;
+}
+
+app-register .flex.rounded-xl.border.border-slate-200 {
+  border-color: var(--border) !important;
+}
+
+app-register a.text-indigo-600 {
+  color: var(--primary) !important;
+}
+
+/* —— Dashboard —— */
+app-dashboard .stat-card {
+  background: #fff !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05) !important;
+  border-left: 4px solid transparent;
+}
+
+app-dashboard .grid > .stat-card:nth-child(1) {
+  border-left-color: var(--primary);
+}
+
+app-dashboard .grid > .stat-card:nth-child(2) {
+  border-left-color: var(--brand-emerald);
+}
+
+app-dashboard .grid > .stat-card:nth-child(3) {
+  border-left-color: var(--brand-gold);
+}
+
+app-dashboard .grid > .stat-card:nth-child(4) {
+  border-left-color: var(--secondary);
+}
+
+app-dashboard .glass-card.p-6.rounded-2xl ul.space-y-3 > li {
+  border-left: 3px solid var(--brand-emerald);
+  padding-left: 0.75rem;
+  margin-left: 0.25rem;
+}
+
+app-dashboard a.btn-primary.text-sm.rounded-2xl {
+  background: var(--gradient-cta) !important;
+  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.22) !important;
+}
+
+/* —— Committees —— */
+app-committees > .space-y-6 > .flex.items-center.justify-between button.btn-primary,
+app-committees button.btn-primary.mt-4 {
+  background: var(--brand-navy) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 22px rgba(30, 58, 95, 0.28) !important;
+}
+
+app-committees > .space-y-6 > .flex.items-center.justify-between button.btn-primary:hover,
+app-committees button.btn-primary.mt-4:hover {
+  background: #152d4a !important;
+  filter: none;
+}
+
+app-committees .glass-card.p-6.flex.flex-col {
+  border-radius: 0.75rem !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06) !important;
+}
+
+app-committees .glass-card.p-6.flex.flex-col:hover {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1) !important;
+  transform: translateY(-2px);
+}
+
+app-committees .glass-card.p-6 .flex-1 h3.font-bold {
+  color: var(--brand-navy) !important;
+}
+
+app-committees .glass-card.p-6 .font-bold.text-emerald-600 {
+  color: var(--brand-emerald) !important;
+  font-weight: 700 !important;
+}
+
+app-committees .glass-card.p-6.flex.flex-col [class*='badge-muted'] {
+  background: #e0e7ff !important;
+  color: #3730a3 !important;
+}
+
+app-committees a.btn-secondary.text-indigo-700 {
+  color: var(--primary) !important;
+  border-color: rgba(99, 102, 241, 0.45) !important;
+  background: rgba(99, 102, 241, 0.06) !important;
+}
+
+/* —— Committee detail —— */
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) {
+  background: var(--brand-navy) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 20px 44px rgba(15, 39, 68, 0.35) !important;
+}
+
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) h1,
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) .text-slate-800,
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) .font-medium {
+  color: #fff !important;
+}
+
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) .text-slate-500 {
+  color: rgba(248, 250, 252, 0.78) !important;
+}
+
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) .text-emerald-600 {
+  color: #6ee7b7 !important;
+}
+
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) .text-xs.font-normal.text-slate-500 {
+  color: rgba(248, 250, 252, 0.65) !important;
+}
+
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) button.btn-secondary {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) .badge-success {
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+}
+
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) .badge-warning {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+app-committee-detail .glass-card.rounded-2xl.shadow-xl:not(.skeleton) .badge-muted {
+  background: #e0e7ff !important;
+  color: #3730a3 !important;
+}
+
+app-committee-detail .amanat-tabs .mat-mdc-tab-labels,
+app-committee-detail .amanat-tabs .mat-mdc-tab-header-pagination {
+  background: #f8fafc !important;
+}
+
+app-committee-detail .amanat-tabs .mdc-tab--active .mdc-tab__text-label {
+  color: var(--brand-emerald) !important;
+  font-weight: 600;
+}
+
+app-committee-detail .amanat-tabs .mat-mdc-tab .mdc-tab-indicator__content--underline {
+  border-color: var(--brand-emerald) !important;
+}
+
+app-committee-detail .amanat-tabs .mdc-tab__ripple::before,
+app-committee-detail .amanat-tabs .mat-mdc-tab .mdc-tab__ripple::before {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+
+app-committee-detail .glass-card.p-4.rounded-xl.border.ring-2.ring-indigo-200 {
+  --tw-ring-shadow: 0 0 #0000 !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+  border-left: 4px solid var(--brand-emerald) !important;
+}
+
+/* —— Members —— */
+app-members table.data-table thead tr {
+  background: #f8fafc !important;
+}
+
+app-members td svg circle[stroke-dasharray='88'] {
+  stroke: var(--brand-emerald) !important;
+}
+
+app-members a.btn-secondary.no-underline {
+  color: var(--primary) !important;
+  border-color: rgba(99, 102, 241, 0.45) !important;
+  background: rgba(99, 102, 241, 0.06) !important;
+}
+
+/* —— Trust profile —— */
+app-trust-profile section.glass-card.p-6.rounded-2xl.shadow-xl {
+  background: linear-gradient(160deg, #1e3a5f 0%, #0f2744 92%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 24px 48px rgba(15, 39, 68, 0.35) !important;
+}
+
+app-trust-profile section.glass-card.p-6.rounded-2xl.shadow-xl .text-slate-800,
+app-trust-profile section.glass-card.p-6.rounded-2xl.shadow-xl .text-slate-700,
+app-trust-profile section.glass-card.p-6.rounded-2xl.shadow-xl .text-slate-500,
+app-trust-profile section.glass-card.p-6.rounded-2xl.shadow-xl .text-slate-400 {
+  color: rgba(248, 250, 252, 0.92) !important;
+}
+
+app-trust-profile section.glass-card.p-6.rounded-2xl.shadow-xl h1 {
+  color: #fff !important;
+}
+
+app-trust-profile section.glass-card.p-6.rounded-2xl.shadow-xl .rounded-full.text-white {
+  background: linear-gradient(135deg, var(--primary), var(--secondary)) !important;
+}
+
+app-trust-profile section.glass-card .grid .rounded-xl.border.border-slate-100[class*='bg-white'] {
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+app-trust-profile section.glass-card .grid .rounded-xl.border.border-slate-100[class*='bg-white'] .text-slate-800,
+app-trust-profile section.glass-card .grid .rounded-xl.border.border-slate-100[class*='bg-white'] .text-slate-500 {
+  color: var(--text) !important;
+}
+
+app-trust-profile .amanat-badge-card.grayscale {
+  opacity: 0.4 !important;
+  filter: grayscale(1);
+}
+
+app-trust-profile .amanat-badge-card--earned {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.12),
+    0 10px 32px rgba(16, 185, 129, 0.12) !important;
+}
+
+app-trust-profile .amanat-badge-card--earned:hover {
+  box-shadow:
+    0 0 0 1px rgba(99, 102, 241, 0.15),
+    0 14px 40px rgba(99, 102, 241, 0.14) !important;
+}
+
+app-trust-profile .amanat-badge-card--gold.amanat-badge-card--earned {
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  box-shadow: 0 0 28px rgba(245, 158, 11, 0.2) !important;
+}
+
+app-trust-profile .amanat-badge-card--warn.amanat-badge-card--earned {
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.12) !important;
+}
+
+app-trust-profile .border-indigo-200.bg-gradient-to-r.from-indigo-50 {
+  border-color: rgba(99, 102, 241, 0.22) !important;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.06)) !important;
+  color: var(--brand-navy) !important;
+}
+
+app-trust-profile .text-amber-500 {
+  color: var(--brand-gold) !important;
+}
+
+/* —— Rounds —— */
+app-rounds .glass-card.p-5.border.ring-2.ring-indigo-200 {
+  --tw-ring-shadow: 0 0 #0000 !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+  border-left: 4px solid var(--brand-emerald) !important;
+}
+
+app-rounds .glass-card.p-5.border.ring-2.ring-emerald-300 {
+  --tw-ring-shadow: 0 0 #0000 !important;
+  border-left: 4px solid var(--primary) !important;
+}
+
+app-rounds p.text-xs.text-emerald-700.font-mono.bg-emerald-50 {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+app-rounds .glass-card.p-5.rounded-2xl.border.border-indigo-100 {
+  border-color: var(--border) !important;
 }

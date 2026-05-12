@@ -66,14 +66,20 @@ const LEGACY_BADGE_NAMES = [
 ] as const;
 
 async function removeLegacyBadges(): Promise<void> {
-  const legacy = await prisma.badge.findMany({
-    where: { name: { in: [...LEGACY_BADGE_NAMES] } },
-    select: { id: true },
-  });
-  const legacyIds = legacy.map((b) => b.id);
-  if (!legacyIds.length) return;
-  await prisma.userBadge.deleteMany({ where: { badgeId: { in: legacyIds } } });
-  await prisma.badge.deleteMany({ where: { id: { in: legacyIds } } });
+  try {
+    const legacy = await prisma.badge.findMany({
+      where: { name: { in: [...LEGACY_BADGE_NAMES] } },
+      select: { id: true },
+    });
+    const legacyIds = legacy.map((b) => b.id);
+    if (!legacyIds.length) return;
+    await prisma.userBadge.deleteMany({ where: { badgeId: { in: legacyIds } } });
+    await prisma.badge.deleteMany({ where: { id: { in: legacyIds } } });
+  } catch (e: unknown) {
+    const code = (e as { code?: string })?.code;
+    if (code === 'P2021') return;
+    throw e;
+  }
 }
 
 async function wipeAmanatDemo(): Promise<void> {
@@ -134,8 +140,8 @@ async function main(): Promise<void> {
 
   const admin = await prisma.user.create({
     data: {
-      name: 'Ahmed Khan',
-      email: 'admin@amanat.demo',
+      name: 'Rabia Ashfaq',
+      email: 'rabia@amanat.demo',
       password: hash,
       role: 'ADMIN',
       phone: '+923001112223',
@@ -211,7 +217,7 @@ async function main(): Promise<void> {
       totalSlots: 6,
       monthlyAmount: 10000,
       startDate: ago(240),
-      durationMonths: 8,
+      durationMonths: 6,
       turnMethod: 'MANUAL',
       status: 'ACTIVE',
       adminId: admin.id,
@@ -222,10 +228,10 @@ async function main(): Promise<void> {
   const gMembers = [
     { user: sara, turn: 1 },
     { user: bilal, turn: 2 },
-    { user: zara, turn: 3 },
-    { user: usman, turn: 4 },
-    { user: fatima, turn: 5 },
-    { user: kamran, turn: 6 },
+    { user: fatima, turn: 3 },
+    { user: zara, turn: 4 },
+    { user: kamran, turn: 5 },
+    { user: usman, turn: 6 },
   ];
   const gCm: { id: string; userId: string }[] = [];
   for (const { user, turn } of gMembers) {
@@ -244,7 +250,10 @@ async function main(): Promise<void> {
 
   const pastDue = ago(14);
   const activeDue = ago(-7);
+  const overdueDue = ago(21);
 
+  let gulshanRound3Id = '';
+  let gulshanRound4Id = '';
   for (let rn = 1; rn <= 4; rn++) {
     const payoutIdx = (rn - 1) % 6;
     const payoutUserId = gMembers[payoutIdx].user.id;
@@ -258,17 +267,18 @@ async function main(): Promise<void> {
         recipientTransactionId: `TX-G-${rn}`,
       },
     });
+    if (rn === 3) gulshanRound3Id = r.id;
+    if (rn === 4) gulshanRound4Id = r.id;
     for (const m of gMembers) {
-      const isUsmanLate = m.user.id === usman.id && rn >= 4;
       await prisma.payment.create({
         data: {
           roundId: r.id,
           memberId: cmByUser(m.user.id),
           userId: m.user.id,
           amount: shareG,
-          status: isUsmanLate ? 'PENDING' : 'PAID',
-          transactionId: isUsmanLate ? null : `pay-${rn}-${m.user.id.slice(0, 6)}`,
-          paidAt: isUsmanLate ? null : pastDue,
+          status: 'PAID',
+          transactionId: `pay-${rn}-${m.user.id.slice(0, 6)}`,
+          paidAt: pastDue,
           dueDate: pastDue,
         },
       });
@@ -279,13 +289,22 @@ async function main(): Promise<void> {
     data: {
       committeeId: gulshan.id,
       roundNumber: 5,
-      payoutUserId: fatima.id,
+      payoutUserId: kamran.id,
       status: 'ACTIVE',
       dueDate: activeDue,
     },
   });
+  const paySpec: Record<string, { paid: boolean; txn?: string }> = {
+    [sara.id]: { paid: true, txn: 'TXN-001' },
+    [bilal.id]: { paid: true, txn: 'TXN-002' },
+    [fatima.id]: { paid: true, txn: 'TXN-003' },
+    [zara.id]: { paid: false },
+    [usman.id]: { paid: false },
+    [kamran.id]: { paid: true, txn: 'TXN-004' },
+  };
   for (const m of gMembers) {
-    const pend = m.user.id === usman.id || m.user.id === zara.id;
+    const spec = paySpec[m.user.id];
+    const pend = !spec.paid;
     await prisma.payment.create({
       data: {
         roundId: r5.id,
@@ -293,9 +312,9 @@ async function main(): Promise<void> {
         userId: m.user.id,
         amount: shareG,
         status: pend ? 'PENDING' : 'PAID',
-        transactionId: pend ? null : `pay-5-${m.user.id.slice(0, 6)}`,
+        transactionId: spec.txn ?? null,
         paidAt: pend ? null : new Date(),
-        dueDate: activeDue,
+        dueDate: pend && (m.user.id === usman.id || m.user.id === zara.id) ? overdueDue : activeDue,
       },
     });
   }
@@ -307,18 +326,18 @@ async function main(): Promise<void> {
       totalSlots: 4,
       monthlyAmount: 25000,
       startDate: ago(120),
-      durationMonths: 6,
+      durationMonths: 4,
       turnMethod: 'MANUAL',
       status: 'ACTIVE',
-      adminId: admin.id,
+      adminId: sara.id,
     },
   });
   const shareD = defence.monthlyAmount / 4;
   const dMembers = [
     { user: sara, turn: 1 },
-    { user: bilal, turn: 2 },
-    { user: fatima, turn: 3 },
-    { user: kamran, turn: 4 },
+    { user: fatima, turn: 2 },
+    { user: kamran, turn: 3 },
+    { user: bilal, turn: 4 },
   ];
   const dCm: { id: string; userId: string }[] = [];
   for (const { user, turn } of dMembers) {
@@ -335,8 +354,10 @@ async function main(): Promise<void> {
   }
   const dcmByUser = (uid: string) => dCm.find((x) => x.userId === uid)!.id;
 
+  let defenceRound1Id = '';
+  let defenceRound2Id = '';
   for (let rn = 1; rn <= 2; rn++) {
-    const payoutUserId = dMembers[rn - 1].user.id;
+    const payoutUserId = rn === 1 ? sara.id : fatima.id;
     const r = await prisma.round.create({
       data: {
         committeeId: defence.id,
@@ -347,6 +368,8 @@ async function main(): Promise<void> {
         recipientTransactionId: `TX-D-${rn}`,
       },
     });
+    if (rn === 1) defenceRound1Id = r.id;
+    if (rn === 2) defenceRound2Id = r.id;
     for (const m of dMembers) {
       await prisma.payment.create({
         data: {
@@ -363,34 +386,126 @@ async function main(): Promise<void> {
     }
   }
 
-  const clifton = await prisma.committee.create({
+  const dr3 = await prisma.round.create({
     data: {
-      name: 'Clifton Micro-Savings',
-      description: 'Smaller pool for quick cycles.',
+      committeeId: defence.id,
+      roundNumber: 3,
+      payoutUserId: kamran.id,
+      status: 'ACTIVE',
+      dueDate: activeDue,
+    },
+  });
+  const dPay3: Record<string, { paid: boolean; txn?: string }> = {
+    [sara.id]: { paid: true, txn: 'TXN-005' },
+    [fatima.id]: { paid: true, txn: 'TXN-006' },
+    [kamran.id]: { paid: false },
+    [bilal.id]: { paid: true, txn: 'TXN-007' },
+  };
+  for (const m of dMembers) {
+    const spec = dPay3[m.user.id];
+    const pend = !spec.paid;
+    await prisma.payment.create({
+      data: {
+        roundId: dr3.id,
+        memberId: dcmByUser(m.user.id),
+        userId: m.user.id,
+        amount: shareD,
+        status: pend ? 'PENDING' : 'PAID',
+        transactionId: spec.txn ?? null,
+        paidAt: pend ? null : new Date(),
+        dueDate: activeDue,
+      },
+    });
+  }
+
+  const johar = await prisma.committee.create({
+    data: {
+      name: 'Johar Town Circle',
+      description: 'Local rotating circle — Johar Town chapter.',
       totalSlots: 4,
       monthlyAmount: 5000,
       startDate: ago(60),
       durationMonths: 4,
-      turnMethod: 'SPIN',
+      turnMethod: 'MANUAL',
       status: 'ACTIVE',
-      adminId: admin.id,
+      adminId: kamran.id,
     },
   });
-  const shareC = clifton.monthlyAmount / 4;
-  const cMembers = [
+  const shareJ = johar.monthlyAmount / 4;
+  const jMembers = [
     { user: kamran, turn: 1 },
-    { user: sara, turn: 2 },
-    { user: bilal, turn: 3 },
-    { user: zara, turn: 4 },
+    { user: zara, turn: 2 },
+    { user: usman, turn: 3 },
+    { user: bilal, turn: 4 },
   ];
-  for (const { user, turn } of cMembers) {
-    await prisma.committeeMember.create({
+  const jCm: { id: string; userId: string }[] = [];
+  for (const { user, turn } of jMembers) {
+    const row = await prisma.committeeMember.create({
       data: {
         userId: user.id,
-        committeeId: clifton.id,
+        committeeId: johar.id,
         turnNumber: turn,
         shareCount: 1,
-        shareAmount: shareC,
+        shareAmount: shareJ,
+      },
+    });
+    jCm.push({ id: row.id, userId: user.id });
+  }
+  const jcmByUser = (uid: string) => jCm.find((x) => x.userId === uid)!.id;
+
+  const jr1 = await prisma.round.create({
+    data: {
+      committeeId: johar.id,
+      roundNumber: 1,
+      payoutUserId: kamran.id,
+      status: 'COMPLETED',
+      dueDate: pastDue,
+      recipientTransactionId: 'TX-J-1',
+    },
+  });
+  for (const m of jMembers) {
+    await prisma.payment.create({
+      data: {
+        roundId: jr1.id,
+        memberId: jcmByUser(m.user.id),
+        userId: m.user.id,
+        amount: shareJ,
+        status: 'PAID',
+        transactionId: `j1-${m.user.id.slice(0, 6)}`,
+        paidAt: pastDue,
+        dueDate: pastDue,
+      },
+    });
+  }
+
+  const jr2 = await prisma.round.create({
+    data: {
+      committeeId: johar.id,
+      roundNumber: 2,
+      payoutUserId: zara.id,
+      status: 'ACTIVE',
+      dueDate: activeDue,
+    },
+  });
+  const jPay2: Record<string, { paid: boolean; txn?: string }> = {
+    [kamran.id]: { paid: true, txn: 'j2-k' },
+    [zara.id]: { paid: true, txn: 'j2-z' },
+    [usman.id]: { paid: false },
+    [bilal.id]: { paid: true, txn: 'j2-b' },
+  };
+  for (const m of jMembers) {
+    const spec = jPay2[m.user.id];
+    const pend = !spec.paid;
+    await prisma.payment.create({
+      data: {
+        roundId: jr2.id,
+        memberId: jcmByUser(m.user.id),
+        userId: m.user.id,
+        amount: shareJ,
+        status: pend ? 'PENDING' : 'PAID',
+        transactionId: spec.txn ?? null,
+        paidAt: pend ? null : new Date(),
+        dueDate: pend && m.user.id === usman.id ? overdueDue : activeDue,
       },
     });
   }
@@ -398,51 +513,57 @@ async function main(): Promise<void> {
   await prisma.feedback.createMany({
     data: [
       {
-        fromUserId: admin.id,
-        toUserId: sara.id,
-        committeeId: gulshan.id,
-        rating: 5,
-        comment: 'Bohat reliable — hamesha time par.',
-      },
-      {
-        fromUserId: admin.id,
-        toUserId: sara.id,
-        committeeId: gulshan.id,
-        rating: 5,
-        comment: 'Great partner in the circle (admin note after round 2).',
-      },
-      {
-        fromUserId: admin.id,
-        toUserId: fatima.id,
-        committeeId: gulshan.id,
-        rating: 5,
-        comment: 'Amanat ka poora khayal.',
-      },
-      {
-        fromUserId: admin.id,
+        fromUserId: sara.id,
         toUserId: bilal.id,
         committeeId: gulshan.id,
+        roundId: gulshanRound4Id,
         rating: 4,
-        comment: 'Solid member; communicates clearly.',
+        comment: 'Always pays on time, trustworthy member',
       },
       {
-        fromUserId: admin.id,
-        toUserId: zara.id,
-        committeeId: gulshan.id,
-        rating: 3,
-        comment: 'Naye hain, abhi seekh rahe hain — theek ja rahe hain.',
+        fromUserId: fatima.id,
+        toUserId: sara.id,
+        committeeId: defence.id,
+        roundId: defenceRound2Id,
+        rating: 5,
+        comment: 'Excellent organizer, very reliable',
       },
       {
         fromUserId: admin.id,
         toUserId: usman.id,
         committeeId: gulshan.id,
+        roundId: gulshanRound3Id,
+        rating: 2,
+        comment: 'Late on multiple payments, needs improvement',
+      },
+      {
+        fromUserId: bilal.id,
+        toUserId: fatima.id,
+        committeeId: gulshan.id,
+        roundId: gulshanRound4Id,
+        rating: 5,
+        comment: 'Perfect record, highly recommend',
+      },
+      {
+        fromUserId: kamran.id,
+        toUserId: zara.id,
+        committeeId: johar.id,
+        roundId: jr1.id,
         rating: 3,
-        comment: 'Kabhi delay ho jata hai — savdhani se.',
+        comment: 'New member, still learning the process',
+      },
+      {
+        fromUserId: sara.id,
+        toUserId: kamran.id,
+        committeeId: defence.id,
+        roundId: defenceRound1Id,
+        rating: 4,
+        comment: 'Good member, active in multiple committees',
       },
     ],
   });
 
-  const memberIds = [sara.id, bilal.id, zara.id, usman.id, fatima.id, kamran.id];
+  const memberIds = [admin.id, sara.id, bilal.id, zara.id, usman.id, fatima.id, kamran.id];
   for (const uid of memberIds) {
     await evaluateBadges(uid);
   }
@@ -462,7 +583,7 @@ async function main(): Promise<void> {
 
   console.log('──────────────────────────────────────────────');
   console.log('Amanat seed complete. Password:', DEMO_PW);
-  console.log('  Admin:   admin@amanat.demo');
+  console.log('  Admin:   rabia@amanat.demo');
   console.log('  Members: sara, bilal, zara, usman, fatima, kamran @amanat.demo');
   console.log('──────────────────────────────────────────────');
 }
