@@ -581,3 +581,37 @@ app-rounds p.text-xs.text-emerald-700.font-mono.bg-emerald-50 {
 app-rounds .glass-card.p-5.rounded-2xl.border.border-indigo-100 {
   border-color: var(--border) !important;
 }
+
+/* —— Mobile: touch, tables, safe areas —— */
+.safe-area-pt {
+  padding-top: max(0px, env(safe-area-inset-top));
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 767px) {
+  .data-table thead th,
+  .data-table tbody td {
+    @apply px-2 py-2.5;
+    font-size: 0.75rem;
+  }
+
+  .data-table thead th {
+    @apply text-[10px];
+  }
+}
+
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+app-committee-detail .amanat-tabs .mat-mdc-tab-label-container {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}

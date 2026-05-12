@@ -14,10 +14,10 @@ import { ToastrService } from 'ngx-toastr';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, MatSnackBarModule],
   template: `
-    <div class="max-w-3xl mx-auto space-y-6 animate-fade-in px-2">
-      <div class="text-center">
-        <h1 class="text-2xl font-bold text-slate-800">Rounds</h1>
-        <p class="text-slate-500 text-sm mt-1">
+    <div class="max-w-3xl mx-auto space-y-5 sm:space-y-6 animate-fade-in px-2 sm:px-3">
+      <div class="text-center px-1">
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Rounds</h1>
+        <p class="text-slate-500 text-xs sm:text-sm mt-2 leading-relaxed text-pretty">
           Members pay the admin each round and submit a <strong>transaction ID</strong>. The round winner records proof of receiving the payout. Money moves outside the app.
         </p>
       </div>
@@ -31,7 +31,7 @@ import { ToastrService } from 'ngx-toastr';
           }
         </select>
         @if (selectedId()) {
-          <a [routerLink]="['/committees', selectedId()]" class="btn-secondary text-xs py-2 px-3 text-center whitespace-nowrap">Committee detail</a>
+          <a [routerLink]="['/committees', selectedId()]" class="btn-secondary text-xs py-2.5 sm:py-2 px-3 text-center whitespace-nowrap w-full sm:w-auto touch-manipulation">Committee detail</a>
         }
       </div>
 
@@ -51,7 +51,7 @@ import { ToastrService } from 'ngx-toastr';
       } @else {
         @if (canManageSelectedCommittee() && meta()?.membersReady && !hasActive()) {
           <div class="flex justify-center">
-            <button type="button" (click)="openStart()" class="btn-primary text-sm px-6 py-2.5 rounded-xl">+ New round</button>
+            <button type="button" (click)="openStart()" class="btn-primary text-sm px-6 py-3 sm:py-2.5 rounded-xl w-full max-w-xs touch-manipulation">+ New round</button>
           </div>
         }
 
@@ -90,14 +90,14 @@ import { ToastrService } from 'ngx-toastr';
               }
 
               @if (r.status === 'ACTIVE') {
-                <div class="mt-4 flex flex-wrap gap-2">
+                <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   @if (canSubmitRecipientTx(r)) {
                     <input [(ngModel)]="txDraft[r.id]" placeholder="Payout transaction ID (proof)"
-                           class="flex-1 min-w-40 px-3 py-2 rounded-lg border text-sm font-mono"/>
-                    <button type="button" class="btn-primary text-xs py-2 px-3" (click)="saveTx(r)" [disabled]="txBusy()===r.id">Save</button>
+                           class="w-full sm:flex-1 min-w-0 px-3 py-3 sm:py-2 rounded-lg border text-sm font-mono"/>
+                    <button type="button" class="btn-primary text-xs py-3 sm:py-2 px-4 w-full sm:w-auto touch-manipulation" (click)="saveTx(r)" [disabled]="txBusy()===r.id">Save</button>
                   }
                   @if (canManageSelectedCommittee()) {
-                    <button type="button" class="btn-secondary text-xs py-2 px-3" (click)="complete(r)" [disabled]="busyId()===r.id">Complete round</button>
+                    <button type="button" class="btn-secondary text-xs py-3 sm:py-2 px-4 w-full sm:w-auto touch-manipulation" (click)="complete(r)" [disabled]="busyId()===r.id">Complete round</button>
                   }
                 </div>
               }
@@ -119,9 +119,9 @@ import { ToastrService } from 'ngx-toastr';
                 <option [value]="m.userId">{{ m.user?.name }}</option>
               }
             </select>
-            <div class="flex gap-1 items-center">
+            <div class="flex gap-1 items-center justify-center sm:justify-start py-1">
               @for (n of [1,2,3,4,5]; track n) {
-                <button type="button" class="text-xl leading-none" [class.opacity-30]="fbRating < n" (click)="fbRating = n">★</button>
+                <button type="button" class="min-h-[44px] min-w-[44px] flex items-center justify-center text-xl leading-none touch-manipulation" [class.opacity-30]="fbRating < n" (click)="fbRating = n" [attr.aria-label]="'Rating ' + n">★</button>
               }
             </div>
             <input [(ngModel)]="fbComment" placeholder="Comment (optional)" class="flex-1 min-w-0 px-3 py-2 rounded-xl border text-sm" />
@@ -131,8 +131,8 @@ import { ToastrService } from 'ngx-toastr';
       }
 
       @if (showStart()) {
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" (click)="closeStart()">
-          <div class="glass-card p-6 w-full max-w-lg" style="background:white" (click)="$event.stopPropagation()">
+        <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50" (click)="closeStart()">
+          <div class="glass-card p-5 sm:p-6 w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl" style="background:white" (click)="$event.stopPropagation()">
             <h2 class="text-lg font-bold text-slate-800 mb-2">Start round</h2>
             <p class="text-xs text-slate-500 mb-4">
               Turn method: <strong>{{ meta()?.turnMethod }}</strong>.

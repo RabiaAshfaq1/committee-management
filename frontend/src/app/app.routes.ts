@@ -49,11 +49,6 @@ export const routes: Routes = [
         loadComponent: () => import('./features/rounds/rounds.component').then((m) => m.RoundsComponent),
       },
       {
-        path: 'profile/me',
-        loadComponent: () =>
-          import('./features/profile/trust-profile.component').then((m) => m.TrustProfileComponent),
-      },
-      {
         path: 'profile/:id',
         loadComponent: () =>
           import('./features/profile/trust-profile.component').then((m) => m.TrustProfileComponent),

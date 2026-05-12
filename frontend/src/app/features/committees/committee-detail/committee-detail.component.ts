@@ -25,9 +25,9 @@ import { CommitteeSpinWheelComponent, SpinMember } from './committee-spin-wheel.
     CommitteeSpinWheelComponent,
   ],
   template: `
-    <div class="space-y-6 animate-fade-in">
-      <div class="flex items-center gap-3">
-        <a routerLink="/committees" class="text-slate-400 hover:text-slate-600 text-sm">← Back</a>
+    <div class="space-y-4 sm:space-y-6 animate-fade-in px-1 sm:px-0">
+      <div class="flex items-center gap-2 min-w-0">
+        <a routerLink="/committees" class="text-slate-400 hover:text-slate-600 text-sm shrink-0 py-2 touch-manipulation">← Back</a>
       </div>
 
       @if (loading()) {
@@ -54,7 +54,7 @@ import { CommitteeSpinWheelComponent, SpinMember } from './committee-spin-wheel.
           </p>
         }
 
-        <mat-tab-group mat-stretch-tabs="false" class="amanat-tabs rounded-2xl overflow-hidden border border-slate-100 bg-white/90 shadow-sm">
+        <mat-tab-group mat-stretch-tabs="false" class="amanat-tabs rounded-2xl overflow-hidden border border-slate-100 bg-white/90 shadow-sm [&_.mat-mdc-tab-labels]:min-h-0">
           <mat-tab label="Members">
             <div class="p-4 md:p-6 space-y-6">
               @if (canManage() && (committee().members?.length ?? 0) > 1) {

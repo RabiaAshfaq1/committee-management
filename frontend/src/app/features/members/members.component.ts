@@ -13,14 +13,14 @@ import { MemberService } from '../../core/services/member.service';
   imports: [CommonModule, ReactiveFormsModule, FormsModule, MatSnackBarModule, RouterLink],
   template: `
     <div class="space-y-6 animate-fade-in">
-      <div class="flex items-center justify-between flex-wrap gap-3">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between flex-wrap">
         <div>
-          <h1 class="text-2xl font-bold text-slate-800">Members</h1>
-          <p class="text-slate-500 text-sm">
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Members</h1>
+          <p class="text-slate-500 text-xs sm:text-sm mt-1 leading-relaxed max-w-2xl">
             MEMBER-role accounts · joining a roster is separate: open each <a routerLink="/committees" class="text-indigo-600 font-medium hover:underline">committee</a> → “Add to committee”.
           </p>
         </div>
-        <button type="button" (click)="openAdd()" class="btn-primary text-sm">+ Add member</button>
+        <button type="button" (click)="openAdd()" class="btn-primary text-sm w-full sm:w-auto shrink-0 py-3 sm:py-2.5 touch-manipulation">+ Add member</button>
       </div>
 
       <div class="glass-card p-4 flex flex-wrap gap-3 items-center">
@@ -91,14 +91,16 @@ import { MemberService } from '../../core/services/member.service';
                         {{ m.isActive ? 'Active' : 'Inactive' }}
                       </span>
                     </td>
-                    <td class="flex flex-wrap gap-1 justify-end">
-                      <a [routerLink]="['/profile', m.id]" class="btn-secondary text-xs py-1 px-2 no-underline inline-block text-center">View profile</a>
-                      <button type="button" class="btn-secondary text-xs py-1 px-2" (click)="openHistory(m)">History</button>
-                      <button type="button" class="btn-secondary text-xs py-1 px-2" (click)="openEdit(m)">Edit</button>
+                    <td>
+                      <div class="flex flex-wrap gap-1 justify-end max-w-[220px] sm:max-w-none ml-auto">
+                      <a [routerLink]="['/profile', m.id]" class="btn-secondary text-xs py-2 px-2 no-underline inline-flex items-center justify-center text-center min-h-[40px] touch-manipulation">View profile</a>
+                      <button type="button" class="btn-secondary text-xs py-2 px-2 min-h-[40px] touch-manipulation" (click)="openHistory(m)">History</button>
+                      <button type="button" class="btn-secondary text-xs py-2 px-2 min-h-[40px] touch-manipulation" (click)="openEdit(m)">Edit</button>
                       @if (m.isActive) {
-                        <button type="button" class="btn-secondary text-xs py-1 px-2 text-red-600 border-red-100"
+                        <button type="button" class="btn-secondary text-xs py-2 px-2 min-h-[40px] text-red-600 border-red-100 touch-manipulation"
                                 (click)="deactivateMember(m)">Deactivate</button>
                       }
+                      </div>
                     </td>
                   </tr>
                 }
@@ -106,9 +108,9 @@ import { MemberService } from '../../core/services/member.service';
             </table>
           </div>
         </div>
-        <div class="flex items-center justify-between">
-          <p class="text-sm text-slate-500">Showing {{ members().length }} of {{ total() }}</p>
-          <div class="flex gap-2">
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-sm text-slate-500 text-center sm:text-left">Showing {{ members().length }} of {{ total() }}</p>
+          <div class="flex justify-center gap-2">
             <button type="button" (click)="prevPage()" [disabled]="page()===1"
                     class="btn-secondary text-xs py-1.5 px-3 disabled:opacity-40">← Prev</button>
             <span class="px-3 py-1.5 text-sm text-slate-600">{{ page() }}</span>

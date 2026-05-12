@@ -9,10 +9,10 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="max-w-5xl mx-auto space-y-8 animate-fade-in px-2">
-      <div class="text-center space-y-2 pt-2">
-        <h1 class="text-2xl font-bold text-slate-800">Hello, {{ auth.currentUser?.name }}</h1>
-        <p class="text-slate-500 text-sm">
+    <div class="max-w-5xl mx-auto space-y-6 sm:space-y-8 animate-fade-in px-1 sm:px-2">
+      <div class="text-center space-y-2 pt-1 sm:pt-2">
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 text-balance px-1">Hello, {{ auth.currentUser?.name }}</h1>
+        <p class="text-slate-500 text-xs sm:text-sm max-w-prose mx-auto px-2 leading-relaxed">
           @if (auth.isAdmin) {
             Platform overview — moderate committees, confirm payments, and keep trust data accurate.
           } @else {
@@ -21,12 +21,12 @@ import { AuthService } from '../../core/services/auth.service';
         </p>
       </div>
 
-      <div class="flex flex-wrap justify-center gap-3">
-        <a routerLink="/committees" class="btn-primary text-sm px-6 py-2.5 rounded-2xl shadow-lg">+ Create committee</a>
-        <a routerLink="/committees" class="btn-secondary text-sm px-6 py-2.5 rounded-2xl">Browse committees</a>
+      <div class="flex flex-col sm:flex-row flex-wrap justify-stretch sm:justify-center gap-2 sm:gap-3 px-1">
+        <a routerLink="/committees" class="btn-primary text-sm px-5 py-3 sm:py-2.5 rounded-2xl shadow-lg text-center w-full sm:w-auto sm:min-w-0">+ Create committee</a>
+        <a routerLink="/committees" class="btn-secondary text-sm px-5 py-3 sm:py-2.5 rounded-2xl text-center w-full sm:w-auto">Browse committees</a>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         @if (loading()) {
           @for (i of [1, 2, 3, 4]; track i) {
             <div class="glass-card h-28 skeleton rounded-2xl"></div>
@@ -98,17 +98,17 @@ import { AuthService } from '../../core/services/auth.service';
         }
       </div>
 
-      <div class="glass-card p-6 rounded-2xl">
-        <h3 class="text-sm font-semibold text-slate-700 mb-4 text-center">Recent activity</h3>
+      <div class="glass-card p-4 sm:p-6 rounded-2xl">
+        <h3 class="text-sm font-semibold text-slate-700 mb-3 sm:mb-4 text-center">Recent activity</h3>
         @if (!activities().length) {
           <p class="text-slate-400 text-sm text-center py-6">Nothing to show yet</p>
         } @else {
           <ul class="space-y-3 max-h-72 overflow-y-auto">
             @for (act of activities(); track $index) {
-              <li class="flex gap-3 text-sm text-slate-700 border-b border-slate-100 pb-3 last:border-0">
-                <span class="text-lg flex-shrink-0">{{ activityIcon(act.type) }}</span>
-                <div>
-                  <p>{{ act.message }}</p>
+              <li class="flex gap-3 text-sm text-slate-700 border-b border-slate-100 pb-3 last:border-0 min-w-0">
+                <span class="text-lg flex-shrink-0 leading-none" aria-hidden="true">{{ activityIcon(act.type) }}</span>
+                <div class="min-w-0">
+                  <p class="break-words">{{ act.message }}</p>
                   <p class="text-xs text-slate-400 mt-0.5">{{ act.time | date: 'short' }}</p>
                 </div>
               </li>
@@ -117,11 +117,11 @@ import { AuthService } from '../../core/services/auth.service';
         }
       </div>
 
-      <div class="flex flex-wrap justify-center gap-3 pb-8">
-        <a routerLink="/committees" class="btn-secondary text-sm py-2 px-4 rounded-xl">Committees</a>
-        <a routerLink="/rounds" class="btn-secondary text-sm py-2 px-4 rounded-xl">Rounds</a>
+      <div class="flex flex-col sm:flex-row flex-wrap justify-stretch sm:justify-center gap-2 sm:gap-3 pb-6 sm:pb-8 px-1">
+        <a routerLink="/committees" class="btn-secondary text-sm py-3 sm:py-2 px-4 rounded-xl text-center w-full sm:w-auto">Committees</a>
+        <a routerLink="/rounds" class="btn-secondary text-sm py-3 sm:py-2 px-4 rounded-xl text-center w-full sm:w-auto">Rounds</a>
         @if (auth.isAdmin) {
-          <a routerLink="/members" class="btn-secondary text-sm py-2 px-4 rounded-xl">Members</a>
+          <a routerLink="/members" class="btn-secondary text-sm py-3 sm:py-2 px-4 rounded-xl text-center w-full sm:w-auto">Members</a>
         }
       </div>
     </div>

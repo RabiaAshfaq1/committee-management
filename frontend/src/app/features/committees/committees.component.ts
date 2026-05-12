@@ -14,25 +14,27 @@ import { AuthService } from '../../core/services/auth.service';
   template: `
     <div class="space-y-6 animate-fade-in">
       <!-- Header -->
-      <div class="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 class="text-2xl font-bold text-slate-800">Committees</h1>
-          <p class="text-slate-500 text-sm">Manage your rotating savings committees</p>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
+        <div class="min-w-0">
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Committees</h1>
+          <p class="text-slate-500 text-xs sm:text-sm mt-0.5">Manage your rotating savings committees</p>
         </div>
         @if (auth.isAdmin) {
-          <button (click)="openModal()" class="btn-primary text-sm rounded-xl shadow-md">+ Create Committee</button>
+          <button type="button" (click)="openModal()" class="btn-primary text-sm rounded-xl shadow-md w-full sm:w-auto shrink-0 py-3 sm:py-2.5 touch-manipulation">+ Create Committee</button>
         }
       </div>
 
       <!-- Search & Filter -->
-      <div class="glass-card p-4 flex flex-wrap gap-3 items-center">
-        <span class="text-slate-400" aria-hidden="true">
+      <div class="glass-card p-3 sm:p-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div class="flex items-center gap-2 min-w-0 w-full sm:flex-1 sm:min-w-48">
+        <span class="text-slate-400 shrink-0" aria-hidden="true">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </span>
         <input [(ngModel)]="searchQuery" (ngModelChange)="onSearch()" placeholder="Search committees..."
-               class="flex-1 min-w-48 px-4 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 bg-slate-50"/>
+               class="flex-1 min-w-0 px-3 sm:px-4 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 bg-slate-50"/>
+        </div>
         <select [(ngModel)]="statusFilter" (ngModelChange)="load()"
-                class="px-4 py-2 rounded-xl border border-slate-200 text-sm outline-none bg-slate-50 focus:border-indigo-400">
+                class="w-full sm:w-auto shrink-0 px-4 py-2.5 rounded-xl border border-slate-200 text-sm outline-none bg-slate-50 focus:border-indigo-400">
           <option value="">All Status</option>
           <option value="ACTIVE">Active</option>
           <option value="PAUSED">Paused</option>
@@ -102,18 +104,18 @@ import { AuthService } from '../../core/services/auth.service';
                   <div class="h-full rounded-full bg-emerald-500 transition-all duration-700" [style.width.%]="roundProgress(c)"></div>
                 </div>
               </div>
-              <div class="flex items-center justify-between pt-1">
-                <p class="text-xs text-slate-400">By {{ c.admin?.name }}</p>
-                <a [routerLink]="['/committees', c.id]" class="btn-secondary text-xs py-1.5 px-3 text-indigo-700 border-indigo-200">View details</a>
+              <div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between pt-1">
+                <p class="text-xs text-slate-400 truncate">By {{ c.admin?.name }}</p>
+                <a [routerLink]="['/committees', c.id]" class="btn-secondary text-xs py-2.5 sm:py-1.5 px-3 text-indigo-700 border-indigo-200 w-full sm:w-auto text-center touch-manipulation">View details</a>
               </div>
             </div>
           }
         </div>
 
         <!-- Pagination -->
-        <div class="flex items-center justify-between">
-          <p class="text-sm text-slate-500">Showing {{ committees().length }} of {{ total() }}</p>
-          <div class="flex gap-2">
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-sm text-slate-500 text-center sm:text-left">Showing {{ committees().length }} of {{ total() }}</p>
+          <div class="flex justify-center gap-2">
             <button (click)="prevPage()" [disabled]="page()===1" class="btn-secondary text-xs py-1.5 px-3 disabled:opacity-40">← Prev</button>
             <span class="px-3 py-1.5 text-sm text-slate-600">{{ page() }}</span>
             <button (click)="nextPage()" [disabled]="committees().length < pageSize" class="btn-secondary text-xs py-1.5 px-3 disabled:opacity-40">Next →</button>
@@ -123,8 +125,8 @@ import { AuthService } from '../../core/services/auth.service';
 
       <!-- Create Modal -->
       @if (showModal()) {
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.5);backdrop-filter:blur(4px)">
-          <div class="glass-card p-8 w-full max-w-lg animate-slide-up" style="background:white">
+        <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style="background:rgba(0,0,0,0.5);backdrop-filter:blur(4px)">
+          <div class="glass-card p-5 sm:p-8 w-full max-w-lg max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl animate-slide-up" style="background:white">
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-xl font-bold text-slate-800">Create Committee</h2>
               <button (click)="showModal.set(false)" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>

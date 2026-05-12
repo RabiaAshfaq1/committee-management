@@ -12,9 +12,9 @@ import { environment } from '../../../../environments/environment';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink, MatButtonModule],
   template: `
-    <div class="min-h-screen flex items-center justify-center p-6" style="background-color: #f8fafc">
+    <div class="min-h-[100dvh] min-h-screen flex items-center justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6" style="background-color: #f8fafc">
       <div
-        class="w-full max-w-lg rounded-2xl shadow-xl border border-white/70 p-8 md:p-10 backdrop-blur-md"
+        class="w-full max-w-lg rounded-2xl shadow-xl border border-white/70 p-6 sm:p-8 md:p-10 backdrop-blur-md max-h-[92dvh] overflow-y-auto"
         style="background: rgba(255,255,255,0.92)"
       >
         <div class="text-center mb-6">

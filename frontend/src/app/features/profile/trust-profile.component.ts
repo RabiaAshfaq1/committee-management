@@ -23,7 +23,7 @@ const BADGE_ICON: Record<string, string> = {
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
   template: `
-    <div class="max-w-5xl mx-auto space-y-10 pb-16 animate-fade-in px-2">
+    <div class="max-w-5xl mx-auto space-y-8 sm:space-y-10 pb-12 sm:pb-16 animate-fade-in px-2 sm:px-3">
       @if (loading()) {
         <div class="glass-card h-96 skeleton rounded-2xl"></div>
       } @else if (error()) {
@@ -234,9 +234,10 @@ const BADGE_ICON: Record<string, string> = {
                   @for (n of [1, 2, 3, 4, 5]; track n) {
                     <button
                       type="button"
-                      class="text-2xl leading-none"
+                      class="min-h-[44px] min-w-[44px] flex items-center justify-center text-2xl leading-none touch-manipulation"
                       [class.opacity-30]="fbRating < n"
                       (click)="fbRating = n"
+                      [attr.aria-label]="'Rating ' + n"
                     >
                       ★
                     </button>

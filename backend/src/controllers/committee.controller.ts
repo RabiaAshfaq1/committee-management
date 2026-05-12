@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { Prisma, CommitteeStatus } from '@prisma/client';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import {
@@ -59,9 +60,25 @@ export const getAllCommittees = async (req: AuthRequest, res: Response): Promise
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
 
-    const where: Record<string, unknown> = {};
-    if (status) where['status'] = status;
-    if (search) where['name'] = { contains: search, mode: 'insensitive' };
+    /** MEMBER accounts only see committees they organize or are on the roster for (not every committee in the DB). */
+    const memberScope: Prisma.CommitteeWhereInput | null =
+      req.user?.role === 'MEMBER'
+        ? {
+            OR: [
+              { adminId: req.user!.id },
+              { members: { some: { userId: req.user!.id } } },
+            ],
+          }
+        : null;
+
+    const searchFilter: Prisma.CommitteeWhereInput = {};
+    if (status) searchFilter.status = status as CommitteeStatus;
+    if (search) searchFilter.name = { contains: search as string, mode: 'insensitive' };
+
+    const where: Prisma.CommitteeWhereInput =
+      memberScope && Object.keys(searchFilter).length > 0
+        ? { AND: [memberScope, searchFilter] }
+        : memberScope ?? searchFilter;
 
     const [rows, total] = await Promise.all([
       prisma.committee.findMany({
@@ -132,6 +149,16 @@ export const getCommitteeById = async (req: AuthRequest, res: Response): Promise
     if (!committee) {
       sendNotFound(res, 'Committee not found');
       return;
+    }
+
+    if (req.user?.role === 'MEMBER') {
+      const allowed =
+        committee.adminId === req.user.id ||
+        committee.members.some((m) => m.userId === req.user!.id);
+      if (!allowed) {
+        sendForbidden(res, 'You can only open committees you belong to');
+        return;
+      }
     }
 
     sendSuccess(res, committee, 'Committee fetched');
